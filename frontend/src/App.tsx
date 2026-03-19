@@ -40,7 +40,7 @@ function App() {
 
       {/* Footer */}
       <p className="absolute bottom-6 text-blue-200/40 text-xs font-medium z-10">
-        &copy; 2026 YesChess School. Коломия, Україна.
+        &copy; 2026 YesChess School. Київ, Україна.
       </p>
     </div>
   )

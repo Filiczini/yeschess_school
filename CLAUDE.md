@@ -13,8 +13,13 @@ npm run dev:backend           # Backend dev server
 cd frontend && npm run build  # TypeScript check + Vite build → dist/
 cd frontend && npm run lint   # ESLint
 
+# Database (Drizzle)
+cd backend && npm run db:generate  # Generate migration from schema changes
+cd backend && npm run db:migrate   # Apply migrations
+cd backend && npm run db:studio    # Open Drizzle Studio (DB browser)
+
 # Docker (production)
-docker compose up --build     # Build and run both services
+docker compose up --build     # Build and run all services
 ```
 
 ## Architecture
@@ -22,8 +27,9 @@ docker compose up --build     # Build and run both services
 Monorepo (npm workspaces) with three packages: `frontend`, `backend`, `shared`.
 
 - **Frontend**: React 19 + Vite 8, served by Nginx in production. SPA with catch-all routing.
-- **Backend**: Fastify 5 API server on port 3000. TypeScript compiled to `dist/` (CommonJS).
+- **Backend**: Fastify 5 API server on port 3000. TypeScript compiled to `dist/` (CommonJS). Drizzle ORM + PostgreSQL 16.
 - **Shared**: Shared code between frontend and backend (currently empty).
+- **Database**: PostgreSQL 16 (Docker container). Schema in `backend/src/db/schema.ts`, managed via Drizzle Kit.
 
 Nginx proxies `/api/*` → `http://backend:3000/` in Docker.
 

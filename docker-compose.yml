@@ -1,8 +1,31 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: yeschess
+      POSTGRES_USER: yeschess
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yeschess"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - default
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://yeschess:${DB_PASSWORD}@db:5432/yeschess
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -12,6 +35,7 @@ services:
       - "traefik.http.services.yeschess-backend.loadbalancer.server.port=3001"
     networks:
       - dokploy-network
+      - default
 
   frontend:
     build:
@@ -28,6 +52,28 @@ services:
       - "traefik.http.services.yeschess-frontend.loadbalancer.server.port=80"
     networks:
       - dokploy-network
+      - default
+
+  backup:
+    image: postgres:16-alpine
+    volumes:
+      - backups:/backups
+    environment:
+      - PGHOST=db
+      - PGUSER=yeschess
+      - PGPASSWORD=${DB_PASSWORD}
+      - PGDATABASE=yeschess
+    entrypoint: ["/bin/sh", "-c", "echo '0 3 * * * pg_dump -Fc > /backups/yeschess_$(date +\\%Y\\%m\\%d).dump && find /backups -mtime +7 -delete' | crontab - && crond -f"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+
+volumes:
+  pgdata:
+  backups:
 
 networks:
   dokploy-network:

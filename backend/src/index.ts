@@ -2,8 +2,12 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { db } from './db/index.js'
-import { sql } from 'drizzle-orm'
+import { user } from './db/schema.js'
+import { eq, sql } from 'drizzle-orm'
 import { auth } from './auth.js'
+
+const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
+type SelfAssignableRole = typeof SELF_ASSIGNABLE_ROLES[number]
 
 const app = Fastify({ logger: true })
 
@@ -32,6 +36,27 @@ app.all('/api/auth/*', async (req, reply) => {
   reply.status(response.status)
   response.headers.forEach((value, key) => reply.header(key, value))
   return reply.send(await response.text())
+})
+
+// Set role after registration (only student/parent/coach allowed)
+app.patch('/api/users/me/role', async (req, reply) => {
+  const webRequest = new Request(`http://${req.headers.host}/api/auth/get-session`, {
+    headers: new Headers(req.headers as Record<string, string>),
+  })
+  const session = await auth.api.getSession({ headers: webRequest.headers })
+
+  if (!session) {
+    return reply.status(401).send({ error: 'Unauthorized' })
+  }
+
+  const { role } = req.body as { role: string }
+
+  if (!SELF_ASSIGNABLE_ROLES.includes(role as SelfAssignableRole)) {
+    return reply.status(400).send({ error: 'Invalid role' })
+  }
+
+  await db.update(user).set({ role: role as SelfAssignableRole }).where(eq(user.id, session.user.id))
+  return reply.send({ ok: true })
 })
 
 app.get('/health', async () => {

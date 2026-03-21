@@ -8,4 +8,9 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom', 'react-router'],
   },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
+  },
 })

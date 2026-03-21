@@ -23,6 +23,9 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://yeschess:${DB_PASSWORD}@db:5432/yeschess
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://api.yeschess.school
+      - FRONTEND_URL=https://yeschess.school
     depends_on:
       db:
         condition: service_healthy

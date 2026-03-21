@@ -1,12 +1,12 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
-import { db } from './db'
+import { db } from './db/index.js'
 import { sql } from 'drizzle-orm'
 
 const app = Fastify({ logger: true })
 
 app.get('/health', async () => {
-  const result = await db.execute(sql`SELECT 1`)
+  await db.execute(sql`SELECT 1`)
   return { status: 'ok', db: 'connected' }
 })
 

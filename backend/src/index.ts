@@ -3,7 +3,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { db } from './db/index.js'
 import { user } from './db/schema.js'
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, asc } from 'drizzle-orm'
 import { auth } from './auth.js'
 
 const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
@@ -131,6 +131,35 @@ app.patch('/api/admin/users/:id/reject', async (req, reply) => {
   const { id } = req.params as { id: string }
   await db.update(user).set({ role: 'student', status: 'active' }).where(eq(user.id, id))
   return reply.send({ ok: true })
+})
+
+// List all users with optional role filter (admin/super_admin only)
+app.get('/api/admin/users', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const { role } = req.query as { role?: string }
+
+  const query = db.select({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    plan: user.plan,
+    createdAt: user.createdAt,
+  }).from(user).orderBy(asc(user.createdAt))
+
+  const users = role
+    ? await query.where(eq(user.role, role as typeof user.role._.data))
+    : await query
+
+  return reply.send(users)
 })
 
 app.get('/health', async () => {

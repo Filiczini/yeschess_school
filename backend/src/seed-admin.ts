@@ -17,15 +17,15 @@ async function seedAdmin() {
   const existing = await db.select().from(user).where(eq(user.email, email))
 
   if (existing.length > 0) {
-    await db.update(user).set({ role: 'admin' }).where(eq(user.email, email))
-    console.log(`Admin role set for existing user: ${email}`)
+    await db.update(user).set({ role: 'super_admin' }).where(eq(user.email, email))
+    console.log(`Super admin role set for existing user: ${email}`)
   } else {
     await auth.api.signUpEmail({
       body: { email, password, name },
     })
 
-    await db.update(user).set({ role: 'admin' }).where(eq(user.email, email))
-    console.log(`Admin created: ${email}`)
+    await db.update(user).set({ role: 'super_admin' }).where(eq(user.email, email))
+    console.log(`Super admin created: ${email}`)
   }
 
   process.exit(0)

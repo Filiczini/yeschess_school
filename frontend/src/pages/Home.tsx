@@ -1,6 +1,9 @@
 import { Link } from 'react-router'
+import { useSession } from '../lib/auth-client'
 
 export default function Home() {
+  const { data: session } = useSession()
+
   return (
     <div className="bg-gradient-to-br from-brand to-brand-dark text-slate-50 antialiased selection:bg-white selection:text-brand min-h-screen flex flex-col items-center justify-center relative overflow-hidden font-sans">
       {/* Background Effects */}
@@ -37,12 +40,22 @@ export default function Home() {
             <iconify-icon icon="solar:phone-linear" width="18" height="18"></iconify-icon>
             +38 (098) 083-77-42
           </a>
-          <Link
-            to="/login"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white rounded-2xl font-semibold text-sm hover:bg-white/20 transition-all duration-300 border border-white/20"
-          >
-            Увійти
-          </Link>
+          {session ? (
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white rounded-2xl font-semibold text-sm hover:bg-white/20 transition-all duration-300 border border-white/20"
+            >
+              <iconify-icon icon="solar:user-circle-linear" width="18" height="18"></iconify-icon>
+              Мій профіль
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white rounded-2xl font-semibold text-sm hover:bg-white/20 transition-all duration-300 border border-white/20"
+            >
+              Увійти
+            </Link>
+          )}
         </div>
       </div>
 

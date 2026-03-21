@@ -6,7 +6,14 @@ import {
   pgEnum,
 } from 'drizzle-orm/pg-core'
 
-export const roleEnum = pgEnum('role', ['student', 'coach', 'admin'])
+export const roleEnum = pgEnum('role', [
+  'student',
+  'parent',
+  'coach',
+  'school_owner',
+  'admin',
+  'super_admin',
+])
 export const planEnum = pgEnum('plan', ['free', 'pro', 'elite'])
 
 // Better Auth core tables

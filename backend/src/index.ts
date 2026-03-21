@@ -16,6 +16,15 @@ await app.register(cors, {
   credentials: true,
 })
 
+// Helper: get session from request headers
+async function getSession(req: { headers: Record<string, string | string[] | undefined> }) {
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value) headers.set(key, Array.isArray(value) ? value[0] : value)
+  }
+  return auth.api.getSession({ headers })
+}
+
 // Better Auth — converts Fastify request to Web API Request
 app.all('/api/auth/*', async (req, reply) => {
   const url = `http://${req.headers.host}${req.url}`
@@ -38,24 +47,89 @@ app.all('/api/auth/*', async (req, reply) => {
   return reply.send(await response.text())
 })
 
-// Set role after registration (only student/parent/coach allowed)
+// Set role after registration — coach gets pending status
 app.patch('/api/users/me/role', async (req, reply) => {
-  const webRequest = new Request(`http://${req.headers.host}/api/auth/get-session`, {
-    headers: new Headers(req.headers as Record<string, string>),
-  })
-  const session = await auth.api.getSession({ headers: webRequest.headers })
-
-  if (!session) {
-    return reply.status(401).send({ error: 'Unauthorized' })
-  }
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
 
   const { role } = req.body as { role: string }
-
   if (!SELF_ASSIGNABLE_ROLES.includes(role as SelfAssignableRole)) {
     return reply.status(400).send({ error: 'Invalid role' })
   }
 
-  await db.update(user).set({ role: role as SelfAssignableRole }).where(eq(user.id, session.user.id))
+  const status = role === 'coach' ? 'pending' : 'active'
+  await db.update(user).set({ role: role as SelfAssignableRole, status }).where(eq(user.id, session.user.id))
+  return reply.send({ ok: true, status })
+})
+
+// Current user profile
+app.get('/api/users/me', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [u] = await db.select({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    plan: user.plan,
+  }).from(user).where(eq(user.id, session.user.id))
+
+  return reply.send(u)
+})
+
+// ── Admin routes ─────────────────────────────────────────────────────────────
+
+// List pending users (admin/super_admin only)
+app.get('/api/admin/pending', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const pending = await db.select({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    createdAt: user.createdAt,
+  }).from(user).where(eq(user.status, 'pending'))
+
+  return reply.send(pending)
+})
+
+// Approve user
+app.patch('/api/admin/users/:id/approve', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const { id } = req.params as { id: string }
+  await db.update(user).set({ status: 'active' }).where(eq(user.id, id))
+  return reply.send({ ok: true })
+})
+
+// Reject user (back to student + active)
+app.patch('/api/admin/users/:id/reject', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const { id } = req.params as { id: string }
+  await db.update(user).set({ role: 'student', status: 'active' }).where(eq(user.id, id))
   return reply.send({ ok: true })
 })
 

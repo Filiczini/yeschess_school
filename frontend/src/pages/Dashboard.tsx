@@ -72,13 +72,22 @@ export default function Dashboard() {
           )}
 
           {isAdmin && (
-            <Link
-              to="/admin/approvals"
-              className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors mb-3"
-            >
-              <iconify-icon icon="solar:users-group-rounded-linear" width="18" height="18"></iconify-icon>
-              Заявки на розгляді
-            </Link>
+            <div className="space-y-2 mb-3">
+              <Link
+                to="/admin/users"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                <iconify-icon icon="solar:users-group-rounded-linear" width="18" height="18"></iconify-icon>
+                Всі користувачі
+              </Link>
+              <Link
+                to="/admin/approvals"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                <iconify-icon icon="solar:hourglass-line-duotone" width="18" height="18"></iconify-icon>
+                Заявки на розгляді
+              </Link>
+            </div>
           )}
 
           <button

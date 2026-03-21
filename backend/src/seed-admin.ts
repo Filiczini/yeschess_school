@@ -1,9 +1,8 @@
 import 'dotenv/config'
 import bcrypt from 'bcryptjs'
-import { db } from './db'
-import { users } from './db/schema'
+import { db } from './db/index.js'
+import { users } from './db/schema.js'
 import { eq } from 'drizzle-orm'
-import { Pool } from 'pg'
 
 async function seedAdmin() {
   const email = process.env.ADMIN_EMAIL

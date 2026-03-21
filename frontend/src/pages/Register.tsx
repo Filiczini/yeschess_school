@@ -46,7 +46,8 @@ export default function Register() {
       return
     }
 
-    window.location.href = '/dashboard'
+    const data = await res.json() as { status: string }
+    window.location.href = data.status === 'pending' ? '/pending' : '/dashboard'
   }
 
   return (

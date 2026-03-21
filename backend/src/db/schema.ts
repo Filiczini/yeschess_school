@@ -15,6 +15,7 @@ export const roleEnum = pgEnum('role', [
   'super_admin',
 ])
 export const planEnum = pgEnum('plan', ['free', 'pro', 'elite'])
+export const statusEnum = pgEnum('status', ['active', 'pending', 'suspended'])
 
 // Better Auth core tables
 export const user = pgTable('user', {
@@ -24,6 +25,7 @@ export const user = pgTable('user', {
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
   role: roleEnum('role').notNull().default('student'),
+  status: statusEnum('status').notNull().default('active'),
   plan: planEnum('plan').notNull().default('free'),
   stripeCustomerId: text('stripe_customer_id'),
   createdAt: timestamp('created_at').notNull(),

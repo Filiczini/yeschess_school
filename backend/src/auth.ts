@@ -18,6 +18,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  session: {
+    expiresIn: 60 * 60 * 24 * 30,      // 30 днів
+    updateAge: 60 * 60 * 24,            // оновлювати куку кожні 24 год
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,                   // кешувати сесію на клієнті 5 хв
+    },
+  },
   user: {
     additionalFields: {
       role: {

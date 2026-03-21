@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { signUp } from '../lib/auth-client'
 
 export default function Register() {
-  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,7 +19,7 @@ export default function Register() {
     if (error) {
       setError(error.message ?? 'Помилка реєстрації')
     } else {
-      navigate('/dashboard')
+      window.location.href = '/dashboard'
     }
 
     setLoading(false)

@@ -1,13 +1,11 @@
-import { useNavigate } from 'react-router'
 import { useSession, signOut } from '../lib/auth-client'
 
 export default function Dashboard() {
   const { data: session } = useSession()
-  const navigate = useNavigate()
 
   async function handleSignOut() {
     await signOut()
-    navigate('/')
+    window.location.href = '/'
   }
 
   return (

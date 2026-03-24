@@ -2,8 +2,8 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { db } from './db/index.js'
-import { user } from './db/schema.js'
-import { eq, sql, asc } from 'drizzle-orm'
+import { user, coachProfile, enrollment } from './db/schema.js'
+import { eq, sql, asc, and } from 'drizzle-orm'
 import { auth } from './auth.js'
 
 const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
@@ -160,6 +160,115 @@ app.get('/api/admin/users', async (req, reply) => {
     : await query
 
   return reply.send(users)
+})
+
+// ── Enrollment routes ─────────────────────────────────────────────────────────
+
+// List coaches who have a profile (for assignment dropdown)
+app.get('/api/admin/coaches', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const coachUser = db.select({ id: user.id, name: user.name, email: user.email }).from(user).as('coach_user')
+
+  const rows = await db
+    .select({
+      coachProfileId: coachProfile.id,
+      name: coachUser.name,
+      email: coachUser.email,
+    })
+    .from(coachProfile)
+    .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id))
+    .orderBy(asc(coachUser.name))
+
+  return reply.send(rows)
+})
+
+// List all enrollments
+app.get('/api/admin/enrollments', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const student = db.select({ id: user.id, name: user.name, email: user.email }).from(user).as('student')
+  const coach = db.select({ id: user.id, name: user.name }).from(user).as('coach_user')
+
+  const rows = await db
+    .select({
+      id: enrollment.id,
+      notes: enrollment.notes,
+      createdAt: enrollment.createdAt,
+      studentId: enrollment.studentId,
+      studentName: student.name,
+      studentEmail: student.email,
+      coachId: enrollment.coachId,
+      coachProfileId: coachProfile.id,
+      coachName: coach.name,
+    })
+    .from(enrollment)
+    .innerJoin(student, eq(enrollment.studentId, student.id))
+    .innerJoin(coachProfile, eq(enrollment.coachId, coachProfile.id))
+    .innerJoin(coach, eq(coachProfile.userId, coach.id))
+    .orderBy(asc(enrollment.createdAt))
+
+  return reply.send(rows)
+})
+
+// Assign student to coach
+app.post('/api/admin/enrollments', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const { studentId, coachId, notes } = req.body as { studentId: string; coachId: string; notes?: string }
+
+  if (!studentId || !coachId) {
+    return reply.status(400).send({ error: 'studentId and coachId are required' })
+  }
+
+  const [existing] = await db
+    .select({ id: enrollment.id })
+    .from(enrollment)
+    .where(and(eq(enrollment.studentId, studentId), eq(enrollment.coachId, coachId)))
+
+  if (existing) {
+    return reply.status(409).send({ error: 'Enrollment already exists' })
+  }
+
+  const [created] = await db
+    .insert(enrollment)
+    .values({ studentId, coachId, assignedBy: session.user.id, notes })
+    .returning({ id: enrollment.id })
+
+  return reply.status(201).send(created)
+})
+
+// Remove enrollment
+app.delete('/api/admin/enrollments/:id', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const { id } = req.params as { id: string }
+  await db.delete(enrollment).where(eq(enrollment.id, id))
+  return reply.send({ ok: true })
 })
 
 app.get('/health', async () => {

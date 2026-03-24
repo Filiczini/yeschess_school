@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { useSession, signOut } from '../lib/auth-client'
 
 interface UserProfile {
@@ -34,6 +34,8 @@ export default function Dashboard() {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
   const isPending = profile?.status === 'pending'
+
+  if (profile?.role === 'coach') return <Navigate to="/coach" replace />
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center px-4">
@@ -79,6 +81,13 @@ export default function Dashboard() {
               >
                 <iconify-icon icon="solar:users-group-rounded-linear" width="18" height="18"></iconify-icon>
                 Всі користувачі
+              </Link>
+              <Link
+                to="/admin/enrollments"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                <iconify-icon icon="solar:user-plus-rounded-linear" width="18" height="18"></iconify-icon>
+                Призначення учнів
               </Link>
               <Link
                 to="/admin/approvals"

@@ -2,11 +2,19 @@
   "name": "yeschess_school",
   "private": true,
   "version": "1.0.0",
-  "workspaces": ["frontend", "backend", "shared"],
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
   "scripts": {
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
+    "dev": "concurrently -n frontend,backend -c cyan,yellow \"npm run dev:frontend\" \"npm run dev:backend\"",
     "seed:admin": "npm run seed:admin --workspace=backend"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

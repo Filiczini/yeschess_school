@@ -29,6 +29,13 @@
       "when": 1774372537955,
       "tag": "0003_naive_nomad",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774373859604,
+      "tag": "0004_superb_korath",
+      "breakpoints": true
     }
   ]
 }

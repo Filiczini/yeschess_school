@@ -485,3 +485,27 @@ export const payout = pgTable('payouts', {
   coachIdx: index('payouts_coach_id_idx').on(t.coachId),
   statusIdx: index('payouts_status_idx').on(t.status),
 }))
+
+// =============================================================================
+// ENROLLMENTS  (адмін призначає учня до тренера)
+// =============================================================================
+
+export const enrollment = pgTable('enrollments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  studentId: text('student_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  coachId: uuid('coach_id')
+    .notNull()
+    .references(() => coachProfile.id, { onDelete: 'cascade' }),
+  assignedBy: text('assigned_by')
+    .notNull()
+    .references(() => user.id), // адмін, який призначив
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  uniqueStudentCoach: uniqueIndex('enrollments_student_coach_uidx').on(t.studentId, t.coachId),
+  studentIdx: index('enrollments_student_id_idx').on(t.studentId),
+  coachIdx: index('enrollments_coach_id_idx').on(t.coachId),
+}))

@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard'
 import Pending from './pages/Pending'
 import AdminApprovals from './pages/AdminApprovals'
 import AdminUsers from './pages/AdminUsers'
+import CoachDashboard from './pages/CoachDashboard'
+import AdminEnrollments from './pages/AdminEnrollments'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -16,6 +18,8 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/pending" element={<ProtectedRoute><Pending /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
+      <Route path="/admin/enrollments" element={<ProtectedRoute><AdminEnrollments /></ProtectedRoute>} />
       <Route path="/admin/approvals" element={<ProtectedRoute><AdminApprovals /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
     </Routes>

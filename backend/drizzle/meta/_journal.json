@@ -22,6 +22,13 @@
       "when": 1774111025598,
       "tag": "0002_common_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774372537955,
+      "tag": "0003_naive_nomad",
+      "breakpoints": true
     }
   ]
 }

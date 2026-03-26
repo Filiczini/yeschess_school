@@ -46,9 +46,9 @@ export default function AdminEnrollments() {
       studRes.json(),
       coachRes.json(),
     ])
-    setEnrollments(enrData)
-    setStudents(studData)
-    setCoaches(coachData)
+    setEnrollments(Array.isArray(enrData) ? enrData : [])
+    setStudents(Array.isArray(studData) ? studData : [])
+    setCoaches(Array.isArray(coachData) ? coachData : [])
   }
 
   useEffect(() => { load() }, [])

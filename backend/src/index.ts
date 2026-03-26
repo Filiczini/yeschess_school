@@ -4,6 +4,7 @@ import cors from '@fastify/cors'
 import { db } from './db/index.js'
 import { user, coachProfile, enrollment } from './db/schema.js'
 import { eq, sql, asc, and } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { auth } from './auth.js'
 
 const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
@@ -77,6 +78,73 @@ app.get('/api/users/me', async (req, reply) => {
   }).from(user).where(eq(user.id, session.user.id))
 
   return reply.send(u)
+})
+
+// ── Coach routes ──────────────────────────────────────────────────────────────
+
+// Get own coach profile
+app.get('/api/coach/profile', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [profile] = await db
+    .select()
+    .from(coachProfile)
+    .where(eq(coachProfile.userId, session.user.id))
+
+  return reply.send(profile ?? null)
+})
+
+// Create or update own coach profile
+app.put('/api/coach/profile', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'coach') {
+    return reply.status(403).send({ error: 'Only coaches can update coach profile' })
+  }
+
+  const { bio, title, fideRating, hourlyRate, languages, specializations } =
+    req.body as {
+      bio?: string
+      title?: string
+      fideRating?: number
+      hourlyRate: string
+      languages?: string[]
+      specializations?: string[]
+    }
+
+  if (!hourlyRate) {
+    return reply.status(400).send({ error: 'hourlyRate is required' })
+  }
+
+  const values = {
+    userId: session.user.id,
+    bio: bio ?? null,
+    title: (title || null) as typeof coachProfile.title._.data,
+    fideRating: fideRating ?? null,
+    hourlyRate,
+    languages: languages ?? [],
+    specializations: specializations ?? [],
+  }
+
+  const [existing] = await db
+    .select({ id: coachProfile.id })
+    .from(coachProfile)
+    .where(eq(coachProfile.userId, session.user.id))
+
+  if (existing) {
+    const [updated] = await db
+      .update(coachProfile)
+      .set({ ...values, updatedAt: new Date() })
+      .where(eq(coachProfile.userId, session.user.id))
+      .returning()
+    return reply.send(updated)
+  }
+
+  const [created] = await db.insert(coachProfile).values(values).returning()
+  return reply.status(201).send(created)
 })
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
@@ -174,7 +242,7 @@ app.get('/api/admin/coaches', async (req, reply) => {
     return reply.status(403).send({ error: 'Forbidden' })
   }
 
-  const coachUser = db.select({ id: user.id, name: user.name, email: user.email }).from(user).as('coach_user')
+  const coachUser = alias(user, 'coach_user')
 
   const rows = await db
     .select({
@@ -199,8 +267,8 @@ app.get('/api/admin/enrollments', async (req, reply) => {
     return reply.status(403).send({ error: 'Forbidden' })
   }
 
-  const student = db.select({ id: user.id, name: user.name, email: user.email }).from(user).as('student')
-  const coach = db.select({ id: user.id, name: user.name }).from(user).as('coach_user')
+  const studentUser = alias(user, 'student_user')
+  const coachUser = alias(user, 'coach_user')
 
   const rows = await db
     .select({
@@ -208,16 +276,15 @@ app.get('/api/admin/enrollments', async (req, reply) => {
       notes: enrollment.notes,
       createdAt: enrollment.createdAt,
       studentId: enrollment.studentId,
-      studentName: student.name,
-      studentEmail: student.email,
+      studentName: studentUser.name,
+      studentEmail: studentUser.email,
       coachId: enrollment.coachId,
-      coachProfileId: coachProfile.id,
-      coachName: coach.name,
+      coachName: coachUser.name,
     })
     .from(enrollment)
-    .innerJoin(student, eq(enrollment.studentId, student.id))
+    .innerJoin(studentUser, eq(enrollment.studentId, studentUser.id))
     .innerJoin(coachProfile, eq(enrollment.coachId, coachProfile.id))
-    .innerJoin(coach, eq(coachProfile.userId, coach.id))
+    .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id))
     .orderBy(asc(enrollment.createdAt))
 
   return reply.send(rows)

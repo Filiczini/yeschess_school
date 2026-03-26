@@ -1,6 +1,26 @@
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router'
 import { signOut } from '../lib/auth-client'
 
 export default function Pending() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/users/me', { credentials: 'include' })
+        const data = await res.json()
+        if (data?.status === 'active') {
+          clearInterval(interval)
+          navigate('/dashboard', { replace: true })
+        }
+      } catch {
+        // ignore network errors, keep polling
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [navigate])
+
   async function handleSignOut() {
     await signOut()
     window.location.href = '/'

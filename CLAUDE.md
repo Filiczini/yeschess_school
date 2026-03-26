@@ -43,7 +43,7 @@ Deployed on Dokploy via Docker Compose with Traefik reverse proxy.
 
 ## Key Details
 
-- Backend uses CommonJS (`"type": "commonjs"`), frontend uses ESM (`"type": "module"`)
+- Both backend and frontend use ESM (`"type": "module"`). Backend TypeScript compiled with `module: NodeNext`.
 - Backend entry point: `backend/src/index.ts` → compiled to `backend/dist/index.js`
 - Frontend entry point: `frontend/src/main.tsx`
 - Docker build context is repo root for both services (paths in Dockerfiles are relative to root)

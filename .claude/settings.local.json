@@ -7,7 +7,14 @@
       "Bash(git push:*)",
       "Bash(npm install:*)",
       "Bash(grep -E \"\\\\.\\(env|md\\)$\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:www.better-auth.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:better-auth.com)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm run:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

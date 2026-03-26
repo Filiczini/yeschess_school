@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Platform — Архітектура v3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #080808;
+    --s1: #0f0f0f;
+    --s2: #161616;
+    --border: #1c1c1c;
+    --border2: #282828;
+    --gold: #c9a84c;
+    --text: #ddddd5;
+    --muted: #444440;
+    --muted2: #606058;
+    --green: #4caf7d;
+    --blue: #5b9cf6;
+    --red: #e05a5a;
+    --purple: #9b7fe8;
+    --orange: #e8894a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.018) 1px, transparent 1px);
+    background-size: 56px 56px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 72px 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 48px;
+    margin-bottom: 88px;
+    padding-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .badge {
+    display: inline-block;
+    background: var(--gold);
+    color: #000;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    padding: 4px 12px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(52px, 6.5vw, 92px);
+    font-weight: 900;
+    line-height: 0.88;
+    letter-spacing: -3px;
+    margin-bottom: 24px;
+  }
+
+  h1 em { color: var(--gold); font-style: normal; }
+
+  .header-desc {
+    font-size: 12px;
+    color: var(--muted2);
+    max-width: 440px;
+    line-height: 2;
+  }
+
+  .header-stack {
+    display: grid;
+    gap: 2px;
+    min-width: 260px;
+  }
+
+  .hs-row {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .hs-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2); }
+  .hs-val { font-size: 11px; color: var(--text); text-align: right; }
+  .hs-val em { color: var(--gold); font-style: normal; }
+
+  /* SECTION */
+  .sec { margin-bottom: 72px; animation: up 0.4s ease both; }
+  .sec:nth-child(1){animation-delay:.05s} .sec:nth-child(2){animation-delay:.10s}
+  .sec:nth-child(3){animation-delay:.15s} .sec:nth-child(4){animation-delay:.20s}
+  .sec:nth-child(5){animation-delay:.25s} .sec:nth-child(6){animation-delay:.30s}
+  .sec:nth-child(7){animation-delay:.35s} .sec:nth-child(8){animation-delay:.40s}
+
+  @keyframes up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+  .sec-title {
+    font-size: 9px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* STACK TABLE */
+  .stack { display: grid; gap: 2px; }
+
+  .stack-row {
+    display: grid;
+    grid-template-columns: 170px 1fr 100px;
+    gap: 2px;
+    align-items: stretch;
+  }
+
+  .sl, .sc, .sr {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    padding: 15px 22px;
+    display: flex;
+    align-items: center;
+  }
+
+  .sl {
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2);
+    position: relative;
+  }
+  .sl::before {
+    content: ''; position: absolute; left:0; top:0; bottom:0; width:2px;
+    background: var(--rc, var(--border));
+  }
+
+  .sc { gap: 7px; flex-wrap: wrap; }
+  .sr { font-size: 10px; color: var(--muted); justify-content: flex-end; white-space: nowrap; }
+
+  .tag {
+    font-size: 11px; padding: 3px 9px;
+    border: 1px solid var(--border2); color: var(--muted2); background: var(--bg);
+    white-space: nowrap;
+  }
+  .tag.hi { border-color: var(--rc, var(--gold)); color: var(--rc, var(--gold)); }
+
+  /* MONOREPO */
+  .mono { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+
+  .mpkg {
+    background: var(--s1); border: 1px solid var(--border); padding: 24px;
+    position: relative; overflow: hidden;
+  }
+  .mpkg::after {
+    content: attr(data-n); position: absolute; bottom:-12px; right:8px;
+    font-family: 'Playfair Display', serif; font-size: 80px; font-weight: 900;
+    color: rgba(201,168,76,0.04); line-height: 1; pointer-events: none;
+  }
+  .pkg-n { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+  .pkg-p { font-size: 11px; color: var(--blue); margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .tree { list-style: none; font-size: 11px; color: var(--muted2); line-height: 2.3; }
+  .tree .d { color: var(--blue); }
+  .tree .f { color: var(--text); }
+  .tree .c { color: var(--muted); font-size: 10px; }
+  .i1{padding-left:14px} .i2{padding-left:28px} .i3{padding-left:42px}
+
+  /* AUTH FLOW */
+  .auth-flow {
+    background: var(--s1); border: 1px solid var(--border);
+    padding: 36px; display: flex; align-items: center; gap: 0; overflow-x: auto;
+  }
+  .af-step { flex-shrink: 0; text-align: center; padding: 0 18px; }
+  .af-icon {
+    width: 52px; height: 52px; border: 1px solid var(--border2); background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px; font-size: 20px;
+  }
+  .af-label { font-size: 9px; letter-spacing: 1px; color: var(--muted2); text-transform: uppercase; line-height: 1.8; }
+  .af-arrow { flex-shrink: 0; color: var(--gold); font-size: 16px; padding: 0 4px; }
+
+  .auth-note {
+    margin-top: 2px; background: var(--s1); border: 1px solid var(--border);
+    padding: 16px 24px; display: grid; grid-template-columns: repeat(3,1fr); gap: 24px;
+  }
+  .an-item { font-size: 11px; color: var(--muted2); line-height: 1.9; }
+  .an-item strong { color: var(--gold); display: block; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 2px; margin-bottom: 2px; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 16px; font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; background: var(--s1); border: 1px solid var(--border);
+    color: var(--muted2); transition: all .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.on { background: var(--gold); color: #000; border-color: var(--gold); }
+  .tc { display: none; } .tc.on { display: block; }
+
+  /* ROUTES */
+  .route-group {
+    background: var(--s1); border: 1px solid var(--border); padding: 0;
+  }
+  .rg-head {
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .rg-name { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; }
+  .rg-sub { font-size: 10px; color: var(--muted2); margin-top: 2px; }
+
+  .dr {
+    display: grid; grid-template-columns: 52px 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 10px 24px; border-bottom: 1px solid var(--border);
+    font-size: 11px; transition: background .1s;
+  }
+  .dr:last-child { border-bottom: none; }
+  .dr:hover { background: var(--s2); }
+
+  .m {
+    font-size: 9px; font-weight: 600; letter-spacing: .5px;
+    padding: 2px 6px; text-align: center;
+  }
+  .m.G { background: rgba(91,156,246,.1); color: var(--blue); }
+  .m.P { background: rgba(76,175,125,.1); color: var(--green); }
+  .m.U { background: rgba(201,168,76,.1); color: var(--gold); }
+  .m.D { background: rgba(224,90,90,.1); color: var(--red); }
+
+  .dr-path { color: var(--text); }
+  .dr-info { display: flex; align-items: center; gap: 8px; color: var(--muted2); font-size: 10px; justify-content: flex-end; }
+
+  .chip {
+    font-size: 9px; padding: 1px 7px;
+    border: 1px solid var(--border2); color: var(--muted); white-space: nowrap;
+  }
+  .chip.jwt { border-color: var(--gold); color: var(--gold); }
+  .chip.admin { border-color: var(--red); color: var(--red); }
+  .chip.coach { border-color: var(--purple); color: var(--purple); }
+
+  /* PAYMENT FLOWS */
+  .pflows { display: grid; grid-template-columns: repeat(4,1fr); gap: 2px; }
+
+  .pf { background: var(--s1); border: 1px solid var(--border); padding: 24px; }
+  .pf-num { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2); margin-bottom: 8px; }
+  .pf-name { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 700; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .pf-steps { list-style: none; }
+  .pf-step {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.025);
+    font-size: 11px; color: var(--muted2);
+  }
+  .sn {
+    width: 17px; height: 17px; background: var(--border); color: var(--muted2);
+    font-size: 9px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .pf-tags { margin-top: 14px; display: flex; gap: 6px; }
+  .ptag { font-size: 10px; padding: 2px 8px; border: 1px solid var(--border2); color: var(--muted2); }
+  .ptag.s { border-color: #6772e5; color: #6772e5; }
+  .ptag.l { border-color: var(--green); color: var(--green); }
+
+  /* MODELS */
+  .models { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; }
+
+  .model { background: var(--s1); border: 1px solid var(--border); padding: 22px; }
+  .model-name {
+    font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700;
+    color: var(--gold); margin-bottom: 14px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mt { font-size: 9px; font-family: 'JetBrains Mono',monospace; color: var(--muted); font-weight: 400; letter-spacing: 1px; }
+  .field {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.022);
+    font-size: 11px; gap: 8px;
+  }
+  .fn { color: var(--text); flex-shrink: 0; }
+  .ft { color: var(--muted); font-size: 10px; text-align: right; }
+  .fpk { color: var(--gold); font-size: 9px; }
+  .ffk { color: var(--blue); font-size: 9px; }
+  .fen { color: var(--purple); font-size: 9px; }
+
+  /* PHASES */
+  .phases { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; }
+
+  .phase { background: var(--s1); border: 1px solid var(--border); padding: 28px; position: relative; overflow: hidden; }
+  .phase-bg {
+    position: absolute; top:-8px; right:10px;
+    font-family: 'Playfair Display', serif; font-size: 96px; font-weight: 900;
+    color: rgba(201,168,76,.035); line-height: 1; pointer-events: none;
+  }
+  .ph-week { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .ph-name { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; margin-bottom: 22px; }
+  .ph-list { list-style: none; }
+  .ph-item {
+    display: flex; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,.025);
+    font-size: 11px; color: var(--muted2);
+  }
+  .ph-item::before { content: '—'; color: var(--border2); flex-shrink: 0; }
+
+  /* INFRA */
+  .infra { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; }
+  .infra-card { background: var(--s1); border: 1px solid var(--border); padding: 24px; }
+  .ic-icon { font-size: 28px; margin-bottom: 12px; }
+  .ic-name { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .ic-role { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  .ic-desc { font-size: 11px; color: var(--muted2); line-height: 2; }
+
+  /* FOOTER */
+  footer {
+    margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: var(--muted);
+  }
+  footer em { color: var(--gold); font-style: normal; }
+
+  @media(max-width:900px){
+    .wrap{padding:40px 20px}
+    header{grid-template-columns:1fr}
+    .mono,.pflows,.infra,.models,.phases{grid-template-columns:1fr 1fr}
+    .stack-row{grid-template-columns:1fr}
+    .sr{display:none}
+    .auth-note{grid-template-columns:1fr}
+  }
+  @media(max-width:600px){
+    .mono,.pflows,.infra,.models,.phases{grid-template-columns:1fr}
+    .dr{grid-template-columns:44px 1fr}
+    .dr-info .chip:not(.jwt){display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="badge">v3.0 — Self-hosted · Фінальна</div>
+    <h1>Chess<br><em>Platform</em></h1>
+    <p class="header-desc">
+      Маркетплейс шахових тренерів. Курси, бронювання, турніри, комбінована монетизація.
+      Повністю на власному VPS — нуль щомісячних SaaS витрат.
+    </p>
+  </div>
+  <div class="header-stack">
+    <div class="hs-row"><span class="hs-label">Frontend</span><span class="hs-val">React 19 · Vite · <em>Tailwind v4</em></span></div>
+    <div class="hs-row"><span class="hs-label">Backend</span><span class="hs-val">Fastify 5 · <em>Better Auth</em></span></div>
+    <div class="hs-row"><span class="hs-label">Database</span><span class="hs-val"><em>PostgreSQL</em> · Drizzle ORM</span></div>
+    <div class="hs-row"><span class="hs-label">Storage</span><span class="hs-val"><em>MinIO</em> (self-hosted S3)</span></div>
+    <div class="hs-row"><span class="hs-label">Payments</span><span class="hs-val"><em>Stripe</em> + LiqPay</span></div>
+    <div class="hs-row"><span class="hs-label">Validation</span><span class="hs-val">Zod 4.3 · shared schemas</span></div>
+    <div class="hs-row"><span class="hs-label">Testing</span><span class="hs-val">Vitest 4.0 · Testing Library</span></div>
+    <div class="hs-row"><span class="hs-label">Infra</span><span class="hs-val">Docker · <em>Dokploy</em> · VPS</span></div>
+  </div>
+</header>
+
+<!-- 01 STACK -->
+<div class="sec">
+  <div class="sec-title">01 — Технологічний стек</div>
+  <div class="stack">
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#61dafb">Frontend</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#61dafb">React 19</span>
+        <span class="tag hi" style="--rc:#3178c6">TypeScript</span>
+        <span class="tag">Vite 5</span>
+        <span class="tag">React Router v7</span>
+        <span class="tag">TanStack Query v5</span>
+        <span class="tag">Zustand</span>
+        <span class="tag">React Hook Form</span>
+      </div>
+      <div class="sr">SPA / CSR</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#38bdf8">UI</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#38bdf8">Tailwind v4</span>
+        <span class="tag">shadcn/ui</span>
+        <span class="tag">Lucide Icons</span>
+        <span class="tag">Framer Motion</span>
+        <span class="tag">react-calendar</span>
+      </div>
+      <div class="sr">Design System</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#68d391">Backend</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#68d391">Fastify 4</span>
+        <span class="tag hi" style="--rc:#3178c6">TypeScript</span>
+        <span class="tag">Node.js 20 LTS</span>
+        <span class="tag">@fastify/cors</span>
+        <span class="tag">@fastify/multipart</span>
+        <span class="tag">@fastify/rate-limit</span>
+      </div>
+      <div class="sr">REST API</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#a78bfa">Auth</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#a78bfa">Better Auth</span>
+        <span class="tag">Email + Password</span>
+        <span class="tag">Google OAuth</span>
+        <span class="tag">Email Verification</span>
+        <span class="tag">Password Reset</span>
+        <span class="tag">Session Management</span>
+      </div>
+      <div class="sr">TS-native</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#5b9cf6">Database</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#5b9cf6">PostgreSQL 16</span>
+        <span class="tag hi" style="--rc:#5b9cf6">Drizzle ORM</span>
+        <span class="tag">Drizzle Kit</span>
+        <span class="tag">Connection pooling</span>
+      </div>
+      <div class="sr">Self-hosted VPS</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#e8894a">Storage</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#e8894a">MinIO</span>
+        <span class="tag">S3-compatible API</span>
+        <span class="tag">@aws-sdk/client-s3</span>
+        <span class="tag">Presigned URLs</span>
+      </div>
+      <div class="sr">Self-hosted VPS</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#f59e0b">Validation</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#f59e0b">Zod 4.3</span>
+        <span class="tag">Shared schemas</span>
+        <span class="tag">API contract types</span>
+        <span class="tag">Form + Route validation</span>
+      </div>
+      <div class="sr">Frontend + Backend</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#6772e5">Payments</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#6772e5">Stripe</span>
+        <span class="tag">Subscriptions</span>
+        <span class="tag">Webhooks</span>
+        <span class="tag hi" style="--rc:#4caf7d">LiqPay</span>
+        <span class="tag">UAH payments</span>
+        <span class="tag">Payout API</span>
+      </div>
+      <div class="sr">4 pay types</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#f87171">Testing</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#f87171">Vitest 4.0</span>
+        <span class="tag">@testing-library/react</span>
+        <span class="tag">Supertest</span>
+        <span class="tag">MSW 2.0</span>
+        <span class="tag">Faker.js</span>
+      </div>
+      <div class="sr">Unit + Integration</div>
+    </div>
+
+    <div class="stack-row">
+      <div class="sl" style="--rc:#888">Infra</div>
+      <div class="sc">
+        <span class="tag hi" style="--rc:#888">Docker</span>
+        <span class="tag hi" style="--rc:#888">Dokploy</span>
+        <span class="tag">docker-compose</span>
+        <span class="tag">GitHub Actions</span>
+        <span class="tag">Nginx</span>
+        <span class="tag">Resend (email)</span>
+        <span class="tag">Plausible (analytics)</span>
+      </div>
+      <div class="sr">VPS · Self-hosted</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 02 MONOREPO -->
+<div class="sec">
+  <div class="sec-title">02 — Monorepo (npm workspaces)</div>
+  <div class="mono">
+
+    <div class="mpkg" data-n="W">
+      <div class="pkg-n">Frontend</div>
+      <div class="pkg-p">/apps/web</div>
+      <ul class="tree">
+        <li class="d">src/</li>
+        <li class="i1 d">pages/</li>
+        <li class="i2 f">Home.tsx</li>
+        <li class="i2 f">Coaches.tsx</li>
+        <li class="i2 f">CoachProfile.tsx</li>
+        <li class="i2 f">Courses.tsx</li>
+        <li class="i2 f">CourseDetail.tsx</li>
+        <li class="i2 f">Tournaments.tsx</li>
+        <li class="i2 f">Dashboard.tsx</li>
+        <li class="i2 f">Booking.tsx</li>
+        <li class="i2 f">Pricing.tsx</li>
+        <li class="i1 d">features/</li>
+        <li class="i2 d">auth/</li>
+        <li class="i2 d">booking/</li>
+        <li class="i2 d">courses/</li>
+        <li class="i2 d">payment/</li>
+        <li class="i1 d">components/</li>
+        <li class="i2 d">ui/ <span class="c">← shadcn</span></li>
+        <li class="i2 d">layout/</li>
+        <li class="i1 d">hooks/</li>
+        <li class="i1 d">store/ <span class="c">← zustand</span></li>
+        <li class="i1 f">lib/api.ts</li>
+        <li class="i1 f">lib/auth.ts</li>
+      </ul>
+    </div>
+
+    <div class="mpkg" data-n="A">
+      <div class="pkg-n">Backend</div>
+      <div class="pkg-p">/apps/api</div>
+      <ul class="tree">
+        <li class="d">src/</li>
+        <li class="i1 f">server.ts</li>
+        <li class="i1 f">app.ts</li>
+        <li class="i1 d">plugins/</li>
+        <li class="i2 f">auth.ts <span class="c">← better-auth</span></li>
+        <li class="i2 f">cors.ts</li>
+        <li class="i2 f">rateLimit.ts</li>
+        <li class="i2 f">minio.ts</li>
+        <li class="i1 d">modules/</li>
+        <li class="i2 d">users/</li>
+        <li class="i2 d">coaches/</li>
+        <li class="i2 d">courses/</li>
+        <li class="i2 d">bookings/</li>
+        <li class="i2 d">tournaments/</li>
+        <li class="i2 d">payments/</li>
+        <li class="i2 d">payouts/</li>
+        <li class="i2 d">storage/</li>
+        <li class="i1 d">lib/</li>
+        <li class="i2 f">drizzle.ts</li>
+        <li class="i2 f">stripe.ts</li>
+        <li class="i2 f">liqpay.ts</li>
+        <li class="i2 f">minio.ts</li>
+        <li class="i2 f">mailer.ts</li>
+      </ul>
+    </div>
+
+    <div class="mpkg" data-n="S">
+      <div class="pkg-n">Shared</div>
+      <div class="pkg-p">/packages/shared</div>
+      <ul class="tree">
+        <li class="d">src/</li>
+        <li class="i1 d">schemas/ <span class="c">← Zod 4.3</span></li>
+        <li class="i2 f">auth.schema.ts</li>
+        <li class="i2 f">user.schema.ts</li>
+        <li class="i2 f">coach.schema.ts</li>
+        <li class="i2 f">course.schema.ts</li>
+        <li class="i2 f">booking.schema.ts</li>
+        <li class="i2 f">payment.schema.ts</li>
+        <li class="i2 f">tournament.schema.ts</li>
+        <li class="i1 d">types/</li>
+        <li class="i2 f">api.types.ts</li>
+        <li class="i2 f">models.types.ts</li>
+        <li class="i2 f">enums.ts</li>
+        <li class="i1 d">constants/</li>
+        <li class="i2 f">plans.ts</li>
+        <li class="i2 f">roles.ts</li>
+        <li class="i2 f">errors.ts</li>
+        <li class="i1 f">index.ts</li>
+      </ul>
+    </div>
+
+    <div class="mpkg" data-n="D">
+      <div class="pkg-n">Database</div>
+      <div class="pkg-p">/packages/db</div>
+      <ul class="tree">
+        <li class="f">schema.ts <span class="c">← drizzle</span></li>
+        <li class="d">migrations/</li>
+        <li class="d">seeds/</li>
+        <li class="i1 f">index.ts</li>
+        <li class="i1 f">coaches.seed.ts</li>
+        <li class="c" style="margin-top:14px; display:block">── Моделі ──</li>
+        <li class="f">User</li>
+        <li class="f">Session <span class="c">← Better Auth</span></li>
+        <li class="f">Coach</li>
+        <li class="f">CoachSchedule</li>
+        <li class="f">Course</li>
+        <li class="f">Lesson</li>
+        <li class="f">CourseAccess</li>
+        <li class="f">Booking</li>
+        <li class="f">Tournament</li>
+        <li class="f">Payment</li>
+        <li class="f">Subscription</li>
+        <li class="f">Payout</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div style="margin-top:2px; background:var(--s1); border:1px solid var(--border); padding:14px 22px; font-size:11px; color:var(--muted2); display:flex; gap:32px; flex-wrap:wrap;">
+    <span><em style="color:var(--gold)">npm workspaces</em> — єдиний node_modules, посилання між пакетами</span>
+    <span><em style="color:var(--gold)">Zod schemas</em> з /shared — одна валідація на фронті та беку</span>
+    <span><em style="color:var(--gold)">Drizzle ORM</em> — TypeScript-first schema, Drizzle Kit для міграцій</span>
+  </div>
+</div>
+
+<!-- 03 BETTER AUTH -->
+<div class="sec">
+  <div class="sec-title">03 — Better Auth Flow</div>
+  <div class="auth-flow">
+    <div class="af-step">
+      <div class="af-icon">👤</div>
+      <div class="af-label">Клієнт<br>React</div>
+    </div>
+    <div class="af-arrow">→</div>
+    <div class="af-step">
+      <div class="af-icon">📝</div>
+      <div class="af-label">Register /<br>Login / OAuth</div>
+    </div>
+    <div class="af-arrow">→</div>
+    <div class="af-step">
+      <div class="af-icon">🔑</div>
+      <div class="af-label">Better Auth<br>Plugin</div>
+    </div>
+    <div class="af-arrow">→</div>
+    <div class="af-step">
+      <div class="af-icon">🗄️</div>
+      <div class="af-label">Session →<br>PostgreSQL</div>
+    </div>
+    <div class="af-arrow">→</div>
+    <div class="af-step">
+      <div class="af-icon">🍪</div>
+      <div class="af-label">httpOnly<br>Cookie</div>
+    </div>
+    <div class="af-arrow">→</div>
+    <div class="af-step">
+      <div class="af-icon">🛡️</div>
+      <div class="af-label">Fastify<br>Middleware</div>
+    </div>
+    <div class="af-arrow">→</div>
+    <div class="af-step">
+      <div class="af-icon">✅</div>
+      <div class="af-label">Protected<br>Routes</div>
+    </div>
+  </div>
+  <div class="auth-note">
+    <div class="an-item">
+      <strong>Session-based</strong>
+      Better Auth зберігає сесії у PostgreSQL таблиці Session. Не JWT — не потрібен Redis для інвалідації.
+    </div>
+    <div class="an-item">
+      <strong>З коробки</strong>
+      Email verification · Password reset · Google OAuth · Rate limiting · CSRF protection
+    </div>
+    <div class="an-item">
+      <strong>Ролі</strong>
+      Middleware перевіряє session.user.role: STUDENT | COACH | ADMIN на кожному захищеному роуті
+    </div>
+  </div>
+</div>
+
+<!-- 04 API -->
+<div class="sec">
+  <div class="sec-title">04 — API Endpoints</div>
+  <div class="tabs">
+    <div class="tab on" onclick="tab(this,'r-auth')">Auth</div>
+    <div class="tab" onclick="tab(this,'r-coaches')">Coaches</div>
+    <div class="tab" onclick="tab(this,'r-courses')">Courses</div>
+    <div class="tab" onclick="tab(this,'r-book')">Bookings</div>
+    <div class="tab" onclick="tab(this,'r-tourn')">Tournaments</div>
+    <div class="tab" onclick="tab(this,'r-pay')">Payments</div>
+    <div class="tab" onclick="tab(this,'r-storage')">Storage</div>
+  </div>
+
+  <div id="r-auth" class="tc on">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Auth & Users</div><div class="rg-sub">Better Auth handles /api/auth/* · Custom routes for profiles</div></div></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/auth/sign-up/email</span><span class="dr-info">Реєстрація <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/auth/sign-in/email</span><span class="dr-info">Логін <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/auth/sign-in/social</span><span class="dr-info">Google OAuth <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/auth/sign-out</span><span class="dr-info">Logout, видалення сесії <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/auth/forget-password</span><span class="dr-info">Email для скидання <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/auth/reset-password</span><span class="dr-info">Скидання паролю <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/auth/get-session</span><span class="dr-info">Поточна сесія + юзер <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/users/me</span><span class="dr-info">Профіль з роллю <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/users/me</span><span class="dr-info">Оновлення профілю <span class="chip jwt">session</span></span></div>
+    </div>
+  </div>
+
+  <div id="r-coaches" class="tc">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Coaches</div><div class="rg-sub">Каталог тренерів, розклад, відгуки</div></div></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/coaches</span><span class="dr-info">Каталог (фільтр, пагінація) <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/coaches/:id</span><span class="dr-info">Профіль тренера <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/coaches/:id/availability</span><span class="dr-info">Вільні слоти <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/coaches/:id/reviews</span><span class="dr-info">Відгуки <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/coaches/me</span><span class="dr-info">Редагувати профіль <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/coaches/me/schedule</span><span class="dr-info">Налаштувати розклад <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/coaches/me/earnings</span><span class="dr-info">Зароблено / виплачено <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/coaches/:id/reviews</span><span class="dr-info">Залишити відгук <span class="chip jwt">session</span></span></div>
+    </div>
+  </div>
+
+  <div id="r-courses" class="tc">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Courses & Lessons</div><div class="rg-sub">Курси, уроки, доступ, прогрес</div></div></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/courses</span><span class="dr-info">Каталог курсів <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/courses/:id</span><span class="dr-info">Деталі + preview уроків <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/courses/:id/lessons</span><span class="dr-info">Повний список (за доступом) <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/lessons/:id</span><span class="dr-info">Контент уроку <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/courses/:id/progress</span><span class="dr-info">Оновити прогрес <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/courses/me</span><span class="dr-info">Мої придбані курси <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/courses</span><span class="dr-info">Створити курс <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/courses/:id</span><span class="dr-info">Редагувати курс <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/courses/:id/lessons</span><span class="dr-info">Додати урок <span class="chip coach">coach</span></span></div>
+    </div>
+  </div>
+
+  <div id="r-book" class="tc">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Bookings</div><div class="rg-sub">Бронювання тренерських сесій</div></div></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/bookings</span><span class="dr-info">Бронювання → ініціює payment <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/bookings/me</span><span class="dr-info">Мої бронювання (студент) <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/bookings/coach</span><span class="dr-info">Бронювання тренера <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/bookings/:id/confirm</span><span class="dr-info">Підтвердити (тренер) <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/bookings/:id/cancel</span><span class="dr-info">Скасувати + refund логіка <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/bookings/:id/complete</span><span class="dr-info">Завершити → тригер payout <span class="chip coach">coach</span></span></div>
+    </div>
+  </div>
+
+  <div id="r-tourn" class="tc">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Tournaments</div><div class="rg-sub">Офлайн та онлайн події</div></div></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/tournaments</span><span class="dr-info">Список подій <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/tournaments/:id</span><span class="dr-info">Деталі турніру <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/tournaments/:id/participants</span><span class="dr-info">Учасники <span class="chip">public</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/tournaments/:id/register</span><span class="dr-info">Реєстрація → payment <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/tournaments</span><span class="dr-info">Створити турнір <span class="chip admin">admin</span></span></div>
+      <div class="dr"><span class="m U">PUT</span><span class="dr-path">/api/tournaments/:id</span><span class="dr-info">Редагувати <span class="chip admin">admin</span></span></div>
+    </div>
+  </div>
+
+  <div id="r-pay" class="tc">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Payments & Payouts</div><div class="rg-sub">Stripe · LiqPay · Виплати тренерам</div></div></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/payments/subscription</span><span class="dr-info">Stripe Checkout — підписка <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/payments/course</span><span class="dr-info">Оплата курсу (Stripe/LiqPay) <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/payments/booking</span><span class="dr-info">Оплата сесії (Stripe/LiqPay) <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/payments/tournament</span><span class="dr-info">Турнірний внесок <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/payments/portal</span><span class="dr-info">Stripe Customer Portal <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/payments/history</span><span class="dr-info">Історія платежів <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/webhooks/stripe</span><span class="dr-info">Stripe events <span class="chip">stripe-sig</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/webhooks/liqpay</span><span class="dr-info">LiqPay callback <span class="chip">signature</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/payouts/trigger</span><span class="dr-info">Ручна виплата тренеру <span class="chip admin">admin</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/payouts</span><span class="dr-info">Всі виплати <span class="chip admin">admin</span></span></div>
+    </div>
+  </div>
+
+  <div id="r-storage" class="tc">
+    <div class="route-group">
+      <div class="rg-head"><div><div class="rg-name">Storage (MinIO)</div><div class="rg-sub">Presigned URLs — файли ніколи не проходять через API сервер</div></div></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/storage/presign/avatar</span><span class="dr-info">URL для завантаження аватара <span class="chip jwt">session</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/storage/presign/cover</span><span class="dr-info">URL для обкладинки курсу <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m P">POST</span><span class="dr-path">/api/storage/presign/doc</span><span class="dr-info">URL для документів тренера <span class="chip coach">coach</span></span></div>
+      <div class="dr"><span class="m G">GET</span><span class="dr-path">/api/storage/url/:key</span><span class="dr-info">Публічний URL файлу <span class="chip">public</span></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 05 PAYMENT FLOWS -->
+<div class="sec">
+  <div class="sec-title">05 — Payment Flows</div>
+  <div class="pflows">
+    <div class="pf">
+      <div class="pf-num">Тип 1</div>
+      <div class="pf-name">Підписка</div>
+      <ul class="pf-steps">
+        <li class="pf-step"><div class="sn">1</div>Вибір плану (місяць/рік)</li>
+        <li class="pf-step"><div class="sn">2</div>Stripe Checkout Session</li>
+        <li class="pf-step"><div class="sn">3</div>Webhook: subscription.created</li>
+        <li class="pf-step"><div class="sn">4</div>user.plan → PRO/ELITE у БД</li>
+        <li class="pf-step"><div class="sn">5</div>Доступ до всіх курсів</li>
+        <li class="pf-step"><div class="sn">→</div>Auto-renew / Customer Portal</li>
+      </ul>
+      <div class="pf-tags"><span class="ptag s">Stripe</span></div>
+    </div>
+    <div class="pf">
+      <div class="pf-num">Тип 2</div>
+      <div class="pf-name">Курс</div>
+      <ul class="pf-steps">
+        <li class="pf-step"><div class="sn">1</div>Клік "Купити курс"</li>
+        <li class="pf-step"><div class="sn">2</div>Checkout (Stripe або LiqPay)</li>
+        <li class="pf-step"><div class="sn">3</div>Webhook: payment succeeded</li>
+        <li class="pf-step"><div class="sn">4</div>CourseAccess запис у БД</li>
+        <li class="pf-step"><div class="sn">5</div>Доступ назавжди</li>
+        <li class="pf-step"><div class="sn">→</div>Email підтвердження (Resend)</li>
+      </ul>
+      <div class="pf-tags"><span class="ptag s">Stripe</span><span class="ptag l">LiqPay</span></div>
+    </div>
+    <div class="pf">
+      <div class="pf-num">Тип 3</div>
+      <div class="pf-name">Сесія тренера</div>
+      <ul class="pf-steps">
+        <li class="pf-step"><div class="sn">1</div>Студент вибирає слот</li>
+        <li class="pf-step"><div class="sn">2</div>Оплата → Booking: PAID</li>
+        <li class="pf-step"><div class="sn">3</div>Тренер підтверджує</li>
+        <li class="pf-step"><div class="sn">4</div>Сесія → COMPLETED</li>
+        <li class="pf-step"><div class="sn">5</div>Payout тренеру (мінус комісія)</li>
+        <li class="pf-step"><div class="sn">→</div>Payout запис у БД</li>
+      </ul>
+      <div class="pf-tags"><span class="ptag s">Stripe</span><span class="ptag l">LiqPay</span></div>
+    </div>
+    <div class="pf">
+      <div class="pf-num">Тип 4</div>
+      <div class="pf-name">Турнір</div>
+      <ul class="pf-steps">
+        <li class="pf-step"><div class="sn">1</div>Реєстрація на турнір</li>
+        <li class="pf-step"><div class="sn">2</div>Оплата внеску</li>
+        <li class="pf-step"><div class="sn">3</div>Webhook: success</li>
+        <li class="pf-step"><div class="sn">4</div>Participant запис у БД</li>
+        <li class="pf-step"><div class="sn">5</div>Email з деталями</li>
+        <li class="pf-step"><div class="sn">→</div>Дохід платформи</li>
+      </ul>
+      <div class="pf-tags"><span class="ptag s">Stripe</span><span class="ptag l">LiqPay</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 06 MODELS -->
+<div class="sec">
+  <div class="sec-title">06 — Drizzle Schema (Models)</div>
+  <div class="models">
+    <div class="model">
+      <div class="model-name">User <span class="mt">auth</span></div>
+      <div class="field"><span class="fn">id</span><span class="fpk">PK uuid</span></div>
+      <div class="field"><span class="fn">email</span><span class="ft">String unique</span></div>
+      <div class="field"><span class="fn">name</span><span class="ft">String</span></div>
+      <div class="field"><span class="fn">role</span><span class="fen">STUDENT|COACH|ADMIN</span></div>
+      <div class="field"><span class="fn">plan</span><span class="fen">FREE|PRO|ELITE</span></div>
+      <div class="field"><span class="fn">avatarUrl</span><span class="ft">String? (MinIO)</span></div>
+      <div class="field"><span class="fn">stripeCustomerId</span><span class="ft">String?</span></div>
+      <div class="field"><span class="fn">emailVerified</span><span class="ft">Boolean</span></div>
+      <div class="field"><span class="fn">createdAt</span><span class="ft">DateTime</span></div>
+    </div>
+    <div class="model">
+      <div class="model-name">Coach <span class="mt">profile</span></div>
+      <div class="field"><span class="fn">id</span><span class="fpk">PK uuid</span></div>
+      <div class="field"><span class="fn">userId</span><span class="ffk">FK → User (1:1)</span></div>
+      <div class="field"><span class="fn">bio</span><span class="ft">Text</span></div>
+      <div class="field"><span class="fn">title</span><span class="fen">FM|IM|GM|CM|NM</span></div>
+      <div class="field"><span class="fn">rating</span><span class="ft">Int (FIDE ELO)</span></div>
+      <div class="field"><span class="fn">hourlyRate</span><span class="ft">Decimal</span></div>
+      <div class="field"><span class="fn">commission</span><span class="ft">Int (% платформи)</span></div>
+      <div class="field"><span class="fn">isVerified</span><span class="ft">Boolean</span></div>
+      <div class="field"><span class="fn">languages</span><span class="ft">String[]</span></div>
+      <div class="field"><span class="fn">specializations</span><span class="ft">String[]</span></div>
+    </div>
+    <div class="model">
+      <div class="model-name">Booking <span class="mt">core</span></div>
+      <div class="field"><span class="fn">id</span><span class="fpk">PK uuid</span></div>
+      <div class="field"><span class="fn">studentId</span><span class="ffk">FK → User</span></div>
+      <div class="field"><span class="fn">coachId</span><span class="ffk">FK → Coach</span></div>
+      <div class="field"><span class="fn">status</span><span class="fen">PENDING|PAID|CONFIRMED|DONE|CANCELLED</span></div>
+      <div class="field"><span class="fn">scheduledAt</span><span class="ft">DateTime</span></div>
+      <div class="field"><span class="fn">durationMin</span><span class="ft">Int</span></div>
+      <div class="field"><span class="fn">price</span><span class="ft">Decimal</span></div>
+      <div class="field"><span class="fn">paymentId</span><span class="ffk">FK → Payment</span></div>
+      <div class="field"><span class="fn">notes</span><span class="ft">Text?</span></div>
+    </div>
+    <div class="model">
+      <div class="model-name">Payment <span class="mt">finance</span></div>
+      <div class="field"><span class="fn">id</span><span class="fpk">PK uuid</span></div>
+      <div class="field"><span class="fn">userId</span><span class="ffk">FK → User</span></div>
+      <div class="field"><span class="fn">type</span><span class="fen">SUBSCRIPTION|COURSE|BOOKING|TOURNAMENT</span></div>
+      <div class="field"><span class="fn">provider</span><span class="fen">STRIPE|LIQPAY</span></div>
+      <div class="field"><span class="fn">status</span><span class="fen">PENDING|SUCCESS|FAILED|REFUNDED</span></div>
+      <div class="field"><span class="fn">amount</span><span class="ft">Decimal</span></div>
+      <div class="field"><span class="fn">currency</span><span class="ft">String (UAH/USD/EUR)</span></div>
+      <div class="field"><span class="fn">externalId</span><span class="ft">String (provider ID)</span></div>
+      <div class="field"><span class="fn">metadata</span><span class="ft">Json</span></div>
+    </div>
+    <div class="model">
+      <div class="model-name">Payout <span class="mt">finance</span></div>
+      <div class="field"><span class="fn">id</span><span class="fpk">PK uuid</span></div>
+      <div class="field"><span class="fn">coachId</span><span class="ffk">FK → Coach</span></div>
+      <div class="field"><span class="fn">amount</span><span class="ft">Decimal (після комісії)</span></div>
+      <div class="field"><span class="fn">platformFee</span><span class="ft">Decimal (комісія)</span></div>
+      <div class="field"><span class="fn">status</span><span class="fen">PENDING|PAID|FAILED</span></div>
+      <div class="field"><span class="fn">paymentIds</span><span class="ft">String[]</span></div>
+      <div class="field"><span class="fn">paidAt</span><span class="ft">DateTime?</span></div>
+      <div class="field"><span class="fn">externalRef</span><span class="ft">String?</span></div>
+    </div>
+    <div class="model">
+      <div class="model-name">Subscription <span class="mt">finance</span></div>
+      <div class="field"><span class="fn">id</span><span class="fpk">PK uuid</span></div>
+      <div class="field"><span class="fn">userId</span><span class="ffk">FK → User (1:1)</span></div>
+      <div class="field"><span class="fn">stripeSubId</span><span class="ft">String unique</span></div>
+      <div class="field"><span class="fn">stripePriceId</span><span class="ft">String</span></div>
+      <div class="field"><span class="fn">plan</span><span class="fen">PRO|ELITE</span></div>
+      <div class="field"><span class="fn">status</span><span class="fen">ACTIVE|PAST_DUE|CANCELLED</span></div>
+      <div class="field"><span class="fn">currentPeriodEnd</span><span class="ft">DateTime</span></div>
+      <div class="field"><span class="fn">cancelAtPeriodEnd</span><span class="ft">Boolean</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 07 INFRA -->
+<div class="sec">
+  <div class="sec-title">07 — Інфраструктура на VPS</div>
+  <div class="infra">
+    <div class="infra-card">
+      <div class="ic-icon">🐳</div>
+      <div class="ic-name">Docker Compose</div>
+      <div class="ic-role">Контейнеризація</div>
+      <div class="ic-desc">
+        <strong style="color:var(--text)">web</strong> — React (Nginx static)<br>
+        <strong style="color:var(--text)">api</strong> — Fastify Node.js<br>
+        <strong style="color:var(--text)">db</strong> — PostgreSQL 16<br>
+        <strong style="color:var(--text)">minio</strong> — Object storage<br>
+        <strong style="color:var(--text)">nginx</strong> — Reverse proxy + SSL
+      </div>
+    </div>
+    <div class="infra-card">
+      <div class="ic-icon">🚀</div>
+      <div class="ic-name">Dokploy</div>
+      <div class="ic-role">Deploy Platform</div>
+      <div class="ic-desc">
+        Self-hosted Heroku-альтернатива.<br>
+        Push to GitHub → auto deploy.<br>
+        SSL через Let's Encrypt автоматично.<br>
+        Env variables management.<br>
+        Rollback одним кліком.
+      </div>
+    </div>
+    <div class="infra-card">
+      <div class="ic-icon">⚙️</div>
+      <div class="ic-name">GitHub Actions</div>
+      <div class="ic-role">CI Pipeline</div>
+      <div class="ic-desc">
+        <strong style="color:var(--text)">On PR:</strong> typecheck + lint + Vitest<br>
+        <strong style="color:var(--text)">On merge main:</strong> build + deploy via Dokploy webhook<br>
+        <strong style="color:var(--text)">Secrets:</strong> через GitHub Secrets → Dokploy env
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:2px; background:var(--s1); border:1px solid var(--border); padding:14px 22px; font-size:11px; color:var(--muted2); display:flex; gap:32px; flex-wrap:wrap;">
+    <span><em style="color:var(--gold)">Нульові SaaS витрати</em> — PostgreSQL, MinIO, Better Auth — все на VPS</span>
+    <span><em style="color:var(--gold)">Єдині платні сервіси</em> — Stripe (% від транзакцій) · LiqPay (% від транзакцій) · Resend (free tier)</span>
+  </div>
+</div>
+
+<!-- 08 ROADMAP -->
+<div class="sec">
+  <div class="sec-title">08 — Роадмап</div>
+  <div class="phases">
+    <div class="phase">
+      <div class="phase-bg">1</div>
+      <div class="ph-week">Тиждень 1–2</div>
+      <div class="ph-name">Foundation</div>
+      <ul class="ph-list">
+        <li class="ph-item">npm workspaces monorepo scaffold</li>
+        <li class="ph-item">Docker Compose (api, db, minio, nginx)</li>
+        <li class="ph-item">Dokploy налаштування на VPS</li>
+        <li class="ph-item">Fastify + TypeScript bootstrap</li>
+        <li class="ph-item">Drizzle schema + міграції</li>
+        <li class="ph-item">Better Auth інтеграція</li>
+        <li class="ph-item">React 19 + Vite + Tailwind v4</li>
+        <li class="ph-item">Auth pages (login/register/verify)</li>
+        <li class="ph-item">Protected routes + ролі</li>
+        <li class="ph-item">Shared Zod schemas setup</li>
+        <li class="ph-item">GitHub Actions CI pipeline</li>
+        <li class="ph-item">Vitest конфіг + перші тести</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="phase-bg">2</div>
+      <div class="ph-week">Тиждень 3–5</div>
+      <div class="ph-name">Core Product</div>
+      <ul class="ph-list">
+        <li class="ph-item">Landing page + дизайн-система</li>
+        <li class="ph-item">Каталог тренерів + фільтри</li>
+        <li class="ph-item">Профіль тренера</li>
+        <li class="ph-item">MinIO інтеграція (аватари, обкладинки)</li>
+        <li class="ph-item">Система бронювання (календар)</li>
+        <li class="ph-item">Stripe підписка + checkout</li>
+        <li class="ph-item">LiqPay разові платежі</li>
+        <li class="ph-item">Webhook handlers (Stripe + LiqPay)</li>
+        <li class="ph-item">Каталог та сторінка курсу</li>
+        <li class="ph-item">Разова оплата за курс</li>
+        <li class="ph-item">Dashboard студента + тренера</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <div class="phase-bg">3</div>
+      <div class="ph-week">Тиждень 6–8</div>
+      <div class="ph-name">Growth</div>
+      <ul class="ph-list">
+        <li class="ph-item">Турніри + реєстрація + внески</li>
+        <li class="ph-item">Система виплат тренерам</li>
+        <li class="ph-item">Admin dashboard</li>
+        <li class="ph-item">Resend email нотифікації</li>
+        <li class="ph-item">Відгуки та рейтинг тренерів</li>
+        <li class="ph-item">Прогрес по курсах</li>
+        <li class="ph-item">Stripe Customer Portal</li>
+        <li class="ph-item">SEO + Open Graph + sitemap</li>
+        <li class="ph-item">Plausible аналітика</li>
+        <li class="ph-item">Load testing + оптимізація</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div>Chess Platform — Architecture v3.0 · Self-hosted VPS · Нуль SaaS витрат</div>
+  <div>Починаємо → <em>Фаза 1: Foundation</em></div>
+</footer>
+
+</div>
+
+<script>
+function tab(el, id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.tc').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById(id).classList.add('on');
+}
+</script>
+</body>
+</html>

@@ -109,7 +109,7 @@ export default function CoachDashboard() {
         {/* Pending notice */}
         {isPending && (
           <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-2xl p-4 mb-4 text-sm text-yellow-200 flex gap-3">
-            <iconify-icon icon="solar:hourglass-line-duotone" width="20" height="20" class="flex-shrink-0 mt-0.5"></iconify-icon>
+            <iconify-icon icon="solar:hourglass-line-duotone" width="20" height="20" className="flex-shrink-0 mt-0.5"></iconify-icon>
             <span>
               Ваш акаунт очікує підтвердження адміністратором. Ви отримаєте доступ до всіх функцій після верифікації.
             </span>
@@ -127,7 +127,7 @@ export default function CoachDashboard() {
               key={s.label}
               className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 text-center text-white"
             >
-              <iconify-icon icon={s.icon} width="20" height="20" class="mb-1 text-blue-200"></iconify-icon>
+              <iconify-icon icon={s.icon} width="20" height="20" className="mb-1 text-blue-200"></iconify-icon>
               <div className="text-xl font-bold font-heading">{s.value}</div>
               <div className="text-xs text-blue-200">{s.label}</div>
             </div>
@@ -142,7 +142,7 @@ export default function CoachDashboard() {
               to={s.to}
               className={`bg-gradient-to-br ${s.color} backdrop-blur-sm border border-white/20 rounded-2xl p-5 text-white hover:border-white/40 transition-colors`}
             >
-              <iconify-icon icon={s.icon} width="28" height="28" class="mb-3 block"></iconify-icon>
+              <iconify-icon icon={s.icon} width="28" height="28" className="mb-3 block"></iconify-icon>
               <div className="font-semibold text-sm font-heading">{s.label}</div>
               <div className="text-xs text-blue-200 mt-0.5">{s.desc}</div>
             </Link>

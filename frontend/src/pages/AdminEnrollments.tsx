@@ -201,7 +201,7 @@ export default function AdminEnrollments() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 text-white text-sm font-medium">
                       <span className="truncate">{e.studentName}</span>
-                      <iconify-icon icon="solar:arrow-right-linear" width="14" height="14" class="text-blue-300 flex-shrink-0"></iconify-icon>
+                      <iconify-icon icon="solar:arrow-right-linear" width="14" height="14" className="text-blue-300 flex-shrink-0"></iconify-icon>
                       <span className="truncate">{e.coachName}</span>
                     </div>
                     <div className="text-blue-200/60 text-xs mt-0.5 truncate">

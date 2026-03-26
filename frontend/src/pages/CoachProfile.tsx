@@ -66,7 +66,7 @@ export default function CoachProfile() {
 
         {!profile ? (
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-blue-200">
-            <iconify-icon icon="solar:user-id-linear" width="40" height="40" class="mb-3 block mx-auto opacity-50"></iconify-icon>
+            <iconify-icon icon="solar:user-id-linear" width="40" height="40" className="mb-3 block mx-auto opacity-50"></iconify-icon>
             <p className="text-sm">Профіль ще не заповнено.</p>
             <Link
               to="/coach/profile/edit"

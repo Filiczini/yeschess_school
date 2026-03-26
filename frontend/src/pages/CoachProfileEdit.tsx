@@ -10,19 +10,9 @@ const SPECIALIZATIONS = [
   'Тактика', 'Шахові завдання', 'Підготовка до турніру',
 ]
 
-interface CoachProfileData {
-  id: string
-  bio: string | null
-  title: string | null
-  fideRating: number | null
-  hourlyRate: string
-  languages: string[]
-  specializations: string[]
-}
 
 export default function CoachProfileEdit() {
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<CoachProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -40,7 +30,6 @@ export default function CoachProfileEdit() {
       .then(r => r.json())
       .then(data => {
         if (data) {
-          setProfile(data)
           setBio(data.bio ?? '')
           setTitle(data.title ?? '')
           setFideRating(data.fideRating?.toString() ?? '')

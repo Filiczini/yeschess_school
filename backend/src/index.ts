@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { db } from './db/index.js'
 import { user, coachProfile, enrollment } from './db/schema.js'
 import { eq, sql, asc, and } from 'drizzle-orm'
@@ -342,6 +343,8 @@ app.get('/health', async () => {
   await db.execute(sql`SELECT 1`)
   return { status: 'ok', db: 'connected' }
 })
+
+await migrate(db, { migrationsFolder: './drizzle' })
 
 app.listen({ port: 3000, host: '0.0.0.0' }, (err) => {
   if (err) process.exit(1)

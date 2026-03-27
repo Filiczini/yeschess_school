@@ -36,6 +36,7 @@ export default function Dashboard() {
   const isPending = profile?.status === 'pending'
 
   if (profile?.role === 'coach') return <Navigate to="/coach" replace />
+  if (profile?.role === 'admin' || profile?.role === 'super_admin') return <Navigate to="/admin" replace />
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center px-4">

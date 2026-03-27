@@ -360,6 +360,27 @@ app.delete('/api/admin/enrollments/:id', async (req, reply) => {
   return reply.send({ ok: true })
 })
 
+// Admin stats overview
+app.get('/api/admin/stats', async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || !['admin', 'super_admin'].includes(me.role)) {
+    return reply.status(403).send({ error: 'Forbidden' })
+  }
+
+  const [totalUsers] = await db.select({ count: sql<number>`count(*)::int` }).from(user)
+  const [pendingCount] = await db.select({ count: sql<number>`count(*)::int` }).from(user).where(eq(user.status, 'pending'))
+  const [enrollmentsCount] = await db.select({ count: sql<number>`count(*)::int` }).from(enrollment)
+
+  return reply.send({
+    totalUsers: totalUsers.count,
+    pendingCount: pendingCount.count,
+    enrollmentsCount: enrollmentsCount.count,
+  })
+})
+
 app.get('/health', async () => {
   await db.execute(sql`SELECT 1`)
   return { status: 'ok', db: 'connected' }

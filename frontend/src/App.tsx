@@ -4,6 +4,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Pending from './pages/Pending'
+import AdminLayout from './components/AdminLayout'
+import AdminOverview from './pages/AdminOverview'
 import AdminApprovals from './pages/AdminApprovals'
 import AdminUsers from './pages/AdminUsers'
 import CoachDashboard from './pages/CoachDashboard'
@@ -23,9 +25,14 @@ export default function App() {
       <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
       <Route path="/coach/profile" element={<ProtectedRoute><CoachProfile /></ProtectedRoute>} />
       <Route path="/coach/profile/edit" element={<ProtectedRoute><CoachProfileEdit /></ProtectedRoute>} />
-      <Route path="/admin/enrollments" element={<ProtectedRoute><AdminEnrollments /></ProtectedRoute>} />
-      <Route path="/admin/approvals" element={<ProtectedRoute><AdminApprovals /></ProtectedRoute>} />
-      <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+
+      {/* Admin — shared layout with sidebar */}
+      <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+        <Route path="/admin" element={<AdminOverview />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/approvals" element={<AdminApprovals />} />
+        <Route path="/admin/enrollments" element={<AdminEnrollments />} />
+      </Route>
     </Routes>
   )
 }

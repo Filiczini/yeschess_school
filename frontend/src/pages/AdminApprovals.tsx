@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router'
 
 interface PendingUser {
   id: string
@@ -63,85 +62,90 @@ export default function AdminApprovals() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
-      <div className="max-w-2xl mx-auto">
+    <div className="p-10 max-w-3xl mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-brand shrink-0">
-            <iconify-icon icon="solar:crown-linear" width="22" height="22"></iconify-icon>
-          </div>
-          <span className="text-white font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
-          <Link to="/dashboard" className="ml-auto text-blue-200/60 text-sm hover:text-white transition-colors flex items-center gap-1">
-            <iconify-icon icon="solar:arrow-left-linear" width="14" height="14"></iconify-icon>
-            Дашборд
-          </Link>
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-7 h-7 border-2 border-gray-200 border-t-brand-light rounded-full animate-spin" />
         </div>
 
-        {/* Title + badge */}
-        <div className="flex items-center gap-3 mb-2">
-          <h1 className="text-2xl font-bold text-white font-heading">Заявки на розгляді</h1>
-          {!loading && users.length > 0 && (
-            <span className="px-2.5 py-0.5 bg-yellow-400/20 text-yellow-300 text-xs font-semibold rounded-full border border-yellow-400/30">
-              {users.length}
-            </span>
-          )}
-        </div>
-        <p className="text-blue-200/70 text-sm mb-8">Підтвердіть або відхиліть заявки тренерів</p>
-
-        {/* Content */}
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      ) : users.length === 0 ? (
+        <div className="bg-white border border-gray-200/80 rounded-2xl shadow-sm p-16 flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-green-50 border border-green-100 rounded-full flex items-center justify-center mb-5">
+            <iconify-icon icon="solar:check-circle-linear" width="30" height="30" className="text-green-500"></iconify-icon>
           </div>
+          <p className="font-heading text-lg font-medium text-gray-900 mb-1">Все перевірено</p>
+          <p className="text-gray-400 text-sm">Нових заявок немає</p>
+          <button
+            onClick={loadPending}
+            className="mt-6 flex items-center gap-2 text-brand-light text-sm hover:underline"
+          >
+            <iconify-icon icon="solar:refresh-linear" width="14" height="14"></iconify-icon>
+            Оновити
+          </button>
+        </div>
 
-        ) : users.length === 0 ? (
-          <div className="bg-white/10 border border-white/20 rounded-2xl p-12 text-center">
-            <div className="w-14 h-14 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <iconify-icon icon="solar:check-circle-linear" width="28" height="28"></iconify-icon>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                {users.length}
+              </span>
+              <span className="text-sm text-gray-500">нових заявок</span>
             </div>
-            <p className="text-white font-medium mb-1">Все перевірено</p>
-            <p className="text-blue-200/60 text-sm">Нових заявок немає</p>
+            <button
+              onClick={loadPending}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-brand-light transition-colors"
+            >
+              <iconify-icon icon="solar:refresh-linear" width="14" height="14"></iconify-icon>
+              Оновити
+            </button>
           </div>
 
-        ) : (
           <div className="space-y-3">
             {users.map(u => {
               const result = done[u.id]
               return (
                 <div
                   key={u.id}
-                  className={`bg-white/10 backdrop-blur-sm border rounded-2xl p-5 transition-all ${
-                    result === 'approved' ? 'border-green-500/50 bg-green-500/10' :
-                    result === 'rejected' ? 'border-red-500/50 bg-red-500/10' :
-                    'border-white/20'
+                  className={`bg-white border rounded-xl shadow-sm p-5 transition-all ${
+                    result === 'approved' ? 'border-green-200 bg-green-50/30' :
+                    result === 'rejected' ? 'border-red-200 bg-red-50/30' :
+                    'border-gray-200/80'
                   }`}
                 >
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className="w-11 h-11 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center shrink-0">
-                      <iconify-icon icon={ROLE_ICONS[u.role] ?? 'solar:user-linear'} width="20" height="20"></iconify-icon>
+                    <div className="w-11 h-11 bg-[#F0EEFA] border border-brand-light/20 rounded-xl flex items-center justify-center shrink-0">
+                      <iconify-icon
+                        icon={ROLE_ICONS[u.role] ?? 'solar:user-linear'}
+                        width="20"
+                        height="20"
+                        className="text-brand-light"
+                      ></iconify-icon>
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-white font-semibold">{u.name}</p>
-                        <span className="text-xs px-2 py-0.5 bg-yellow-400/20 text-yellow-300 rounded-full border border-yellow-400/20">
+                        <p className="font-semibold text-gray-900">{u.name}</p>
+                        <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md border border-amber-200">
                           {ROLE_LABELS[u.role] ?? u.role}
                         </span>
                         {result && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                          <span className={`text-xs px-2 py-0.5 rounded-md border font-medium ${
                             result === 'approved'
-                              ? 'bg-green-500/20 text-green-300 border-green-500/30'
-                              : 'bg-red-500/20 text-red-300 border-red-500/30'
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-red-50 text-red-700 border-red-200'
                           }`}>
                             {result === 'approved' ? '✓ Підтверджено' : '✗ Відхилено'}
                           </span>
                         )}
                       </div>
-                      <p className="text-blue-200/70 text-xs mt-0.5">{u.email}</p>
-                      <p className="text-blue-200/40 text-xs mt-1">
+                      <p className="text-gray-500 text-xs mt-0.5">{u.email}</p>
+                      <p className="text-gray-400 text-xs mt-1 flex items-center gap-1">
+                        <iconify-icon icon="solar:clock-circle-linear" width="12" height="12"></iconify-icon>
                         Зареєстрований {formatDate(u.createdAt)}
                       </p>
                     </div>
@@ -153,7 +157,7 @@ export default function AdminApprovals() {
                       <button
                         onClick={() => approve(u.id)}
                         disabled={processing === u.id}
-                        className="flex-1 py-2.5 bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                       >
                         <iconify-icon icon="solar:check-circle-linear" width="16" height="16"></iconify-icon>
                         Підтвердити
@@ -161,7 +165,7 @@ export default function AdminApprovals() {
                       <button
                         onClick={() => reject(u.id)}
                         disabled={processing === u.id}
-                        className="flex-1 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                       >
                         <iconify-icon icon="solar:close-circle-linear" width="16" height="16"></iconify-icon>
                         Відхилити
@@ -172,19 +176,8 @@ export default function AdminApprovals() {
               )
             })}
           </div>
-        )}
-
-        {/* Refresh */}
-        {!loading && (
-          <button
-            onClick={loadPending}
-            className="mt-6 w-full py-3 text-blue-200/50 hover:text-blue-200 text-sm transition-colors flex items-center justify-center gap-2"
-          >
-            <iconify-icon icon="solar:refresh-linear" width="14" height="14"></iconify-icon>
-            Оновити список
-          </button>
-        )}
-      </div>
+        </>
+      )}
     </div>
   )
 }

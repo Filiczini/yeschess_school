@@ -87,9 +87,20 @@ export const user = pgTable('user', {
   status: statusEnum('status').notNull().default('active'),
   plan: planEnum('plan').notNull().default('free'),
   stripeCustomerId: text('stripe_customer_id').unique(),
+  phone: text('phone'),
+  contactMethod: text('contact_method'),
+  instagram: text('instagram'),
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
   deletedAt: timestamp('deleted_at'),
+})
+
+export const lead = pgTable('leads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  contact: text('contact').notNull(),
+  comment: text('comment'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
 export const session = pgTable('session', {

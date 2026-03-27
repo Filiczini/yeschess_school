@@ -3,7 +3,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { db } from './db/index.js'
-import { user, coachProfile, enrollment } from './db/schema.js'
+import { user, coachProfile, enrollment, lead } from './db/schema.js'
 import { eq, sql, asc, and } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from './auth.js'
@@ -54,14 +54,35 @@ app.patch('/api/users/me/role', async (req, reply) => {
   const session = await getSession(req as Parameters<typeof getSession>[0])
   if (!session) return reply.status(401).send({ error: 'Unauthorized' })
 
-  const { role } = req.body as { role: string }
+  const { role, phone, contactMethod, instagram } = req.body as {
+    role: string
+    phone?: string
+    contactMethod?: string
+    instagram?: string
+  }
   if (!SELF_ASSIGNABLE_ROLES.includes(role as SelfAssignableRole)) {
     return reply.status(400).send({ error: 'Invalid role' })
   }
 
   const status = role === 'coach' ? 'pending' : 'active'
-  await db.update(user).set({ role: role as SelfAssignableRole, status }).where(eq(user.id, session.user.id))
+  await db.update(user).set({
+    role: role as SelfAssignableRole,
+    status,
+    phone: phone ?? null,
+    contactMethod: contactMethod ?? null,
+    instagram: instagram ?? null,
+  }).where(eq(user.id, session.user.id))
   return reply.send({ ok: true, status })
+})
+
+// Public — save "leave a request" lead
+app.post('/api/leads', async (req, reply) => {
+  const { name, contact, comment } = req.body as { name: string; contact: string; comment?: string }
+  if (!name || !contact) {
+    return reply.status(400).send({ error: 'name and contact are required' })
+  }
+  const [created] = await db.insert(lead).values({ name, contact, comment }).returning({ id: lead.id })
+  return reply.status(201).send(created)
 })
 
 // Current user profile

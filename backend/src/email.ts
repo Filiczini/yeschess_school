@@ -1,8 +1,11 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM = process.env.EMAIL_FROM ?? 'YesChess <noreply@yeschess.school>'
 const SITE = process.env.FRONTEND_URL ?? 'http://localhost:5173'
+
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY!)
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -70,7 +73,7 @@ function wrap(content: string) {
 export async function sendWelcome(to: string, name: string) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: 'Ласкаво просимо до YesChess! ♟️',
@@ -93,7 +96,7 @@ export async function sendCoachAssigned(
 ) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: 'Тобі призначено тренера — YesChess',
@@ -125,7 +128,7 @@ export async function sendBookingConfirmed(
 ) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: 'Заняття підтверджено — YesChess',
@@ -165,7 +168,7 @@ export async function sendBookingCancelled(
 ) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: 'Заняття скасовано — YesChess',
@@ -201,7 +204,7 @@ export async function sendBookingCancelled(
 export async function sendPasswordReset(to: string, resetUrl: string) {
   if (!process.env.RESEND_API_KEY) return
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to,
     subject: 'Відновлення паролю — YesChess',

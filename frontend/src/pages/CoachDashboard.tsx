@@ -24,10 +24,10 @@ const SECTIONS = [
     color: 'from-blue-500/20 to-cyan-500/20',
   },
   {
-    icon: 'solar:book-2-bold-duotone',
-    label: 'Мої курси',
-    desc: 'Створити та керувати',
-    to: '/coach/courses',
+    icon: 'solar:notebook-bold-duotone',
+    label: 'Бронювання',
+    desc: 'Підтвердити заняття',
+    to: '/coach/bookings',
     color: 'from-emerald-500/20 to-teal-500/20',
   },
   {
@@ -42,11 +42,19 @@ const SECTIONS = [
 export default function CoachDashboard() {
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
     fetch('/api/users/me', { credentials: 'include' })
       .then(r => r.json())
       .then(setProfile)
+    fetch('/api/coach/bookings', { credentials: 'include' })
+      .then(r => r.json())
+      .then((data: { status: string }[]) => {
+        if (Array.isArray(data)) {
+          setPendingCount(data.filter(b => b.status === 'pending').length)
+        }
+      })
   }, [])
 
   async function handleSignOut() {
@@ -114,6 +122,20 @@ export default function CoachDashboard() {
               Ваш акаунт очікує підтвердження адміністратором. Ви отримаєте доступ до всіх функцій після верифікації.
             </span>
           </div>
+        )}
+
+        {/* Pending bookings alert */}
+        {pendingCount > 0 && (
+          <Link
+            to="/coach/bookings"
+            className="flex items-center gap-3 bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4 mb-4 text-sm text-amber-200 hover:bg-amber-400/15 transition-colors"
+          >
+            <iconify-icon icon="solar:bell-bing-bold-duotone" width="20" height="20" className="flex-shrink-0"></iconify-icon>
+            <span className="flex-1">
+              У вас <strong>{pendingCount}</strong> {pendingCount === 1 ? 'нове бронювання' : 'нових бронювань'} — потрібне підтвердження
+            </span>
+            <iconify-icon icon="solar:arrow-right-linear" width="16" height="16"></iconify-icon>
+          </Link>
         )}
 
         {/* Quick stats */}

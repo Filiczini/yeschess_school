@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 
 interface CoachInfo {
   coachProfileId: string
@@ -52,8 +52,7 @@ function todayStr() {
 }
 
 export default function StudentBooking() {
-  const navigate = useNavigate()
-  const [coach, setCoach] = useState<CoachInfo | null>(null)
+const [coach, setCoach] = useState<CoachInfo | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
 

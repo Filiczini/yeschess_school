@@ -66,6 +66,11 @@ export default function AdminUsers() {
   const [confirmUser, setConfirmUser] = useState<User | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Permanent delete
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [confirmPermanent, setConfirmPermanent] = useState(false)
+  const [permanentDeleting, setPermanentDeleting] = useState(false)
+
   useEffect(() => {
     fetch('/api/users/me', { credentials: 'include' })
       .then(r => r.json())
@@ -92,6 +97,7 @@ export default function AdminUsers() {
   function handleTabChange(deleted: boolean) {
     setShowDeleted(deleted)
     setActiveRole('')
+    setSelectedIds(new Set())
     load('', deleted)
   }
 
@@ -114,10 +120,49 @@ export default function AdminUsers() {
       method: 'PATCH',
       credentials: 'include',
     })
-    if (res.ok) setUsers(prev => prev.filter(p => p.id !== u.id))
+    if (res.ok) {
+      setUsers(prev => prev.filter(p => p.id !== u.id))
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(u.id); return next })
+    }
+  }
+
+  async function handlePermanentDelete() {
+    if (!selectedIds.size) return
+    setPermanentDeleting(true)
+    const res = await fetch('/api/admin/users/permanent', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ ids: [...selectedIds] }),
+    })
+    if (res.ok) {
+      setUsers(prev => prev.filter(u => !selectedIds.has(u.id)))
+      setSelectedIds(new Set())
+      setConfirmPermanent(false)
+    }
+    setPermanentDeleting(false)
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === users.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(users.map(u => u.id)))
+    }
   }
 
   const isSuperAdmin = myRole === 'super_admin'
+  const allSelected = users.length > 0 && selectedIds.size === users.length
+  const someSelected = selectedIds.size > 0 && !allSelected
 
   return (
     <div className="p-10 max-w-6xl mx-auto">
@@ -149,11 +194,22 @@ export default function AdminUsers() {
           )}
         </div>
 
-        {!loading && (
-          <span className="text-xs text-gray-400">
-            {users.length} {users.length === 1 ? 'запис' : 'записів'}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {showDeleted && selectedIds.size > 0 && (
+            <button
+              onClick={() => setConfirmPermanent(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl transition-colors cursor-pointer"
+            >
+              <iconify-icon icon="solar:trash-bin-trash-bold" width="16" height="16"></iconify-icon>
+              Видалити остаточно ({selectedIds.size})
+            </button>
+          )}
+          {!loading && (
+            <span className="text-xs text-gray-400">
+              {users.length} {users.length === 1 ? 'запис' : 'записів'}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Role filters — only on active users tab */}
@@ -196,6 +252,17 @@ export default function AdminUsers() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wider">
+                {showDeleted && (
+                  <th className="pl-6 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={el => { if (el) el.indeterminate = someSelected }}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300 text-red-500 cursor-pointer accent-red-500"
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left font-medium">Користувач</th>
                 <th className="px-6 py-3 text-left font-medium">Роль</th>
                 <th className="px-6 py-3 text-left font-medium">Статус</th>
@@ -208,8 +275,28 @@ export default function AdminUsers() {
             <tbody className="divide-y divide-gray-50">
               {users.map(u => {
                 const canDelete = isSuperAdmin && u.role !== 'super_admin'
+                const isChecked = selectedIds.has(u.id)
                 return (
-                  <tr key={u.id} className={`transition-colors ${showDeleted ? 'opacity-60 hover:opacity-80' : 'hover:bg-gray-50/50'}`}>
+                  <tr
+                    key={u.id}
+                    className={`transition-colors ${
+                      showDeleted
+                        ? isChecked
+                          ? 'bg-red-50/60'
+                          : 'opacity-60 hover:opacity-80'
+                        : 'hover:bg-gray-50/50'
+                    }`}
+                  >
+                    {showDeleted && (
+                      <td className="pl-6 py-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSelect(u.id)}
+                          className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-red-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[#F0EEFA] flex items-center justify-center text-brand-light text-xs font-semibold shrink-0">
@@ -239,7 +326,7 @@ export default function AdminUsers() {
                         {showDeleted ? (
                           <button
                             onClick={() => handleRestore(u)}
-                            className="p-1.5 text-gray-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                            className="p-1.5 text-gray-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
                             title="Відновити користувача"
                           >
                             <iconify-icon icon="solar:restart-bold" width="16" height="16"></iconify-icon>
@@ -247,7 +334,7 @@ export default function AdminUsers() {
                         ) : canDelete ? (
                           <button
                             onClick={() => setConfirmUser(u)}
-                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
                             title="Видалити користувача"
                           >
                             <iconify-icon icon="solar:trash-bin-trash-linear" width="16" height="16"></iconify-icon>
@@ -263,7 +350,7 @@ export default function AdminUsers() {
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Soft-delete confirmation dialog */}
       {confirmUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -289,20 +376,67 @@ export default function AdminUsers() {
               <button
                 onClick={() => setConfirmUser(null)}
                 disabled={deleting}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Скасувати
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {deleting
                   ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   : <iconify-icon icon="solar:trash-bin-trash-linear" width="16" height="16"></iconify-icon>
                 }
                 Видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent delete confirmation dialog */}
+      {confirmPermanent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !permanentDeleting && setConfirmPermanent(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4">
+              <iconify-icon icon="solar:danger-bold-duotone" width="24" height="24" className="text-red-600"></iconify-icon>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Видалити назавжди?</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Буде остаточно видалено {selectedIds.size} {selectedIds.size === 1 ? 'акаунт' : 'акаунти'}. Це незворотна дія — відновити буде неможливо.
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 max-h-36 overflow-y-auto space-y-1.5">
+              {users.filter(u => selectedIds.has(u.id)).map(u => (
+                <div key={u.id}>
+                  <p className="font-medium text-gray-800 text-sm">{u.name}</p>
+                  <p className="text-xs text-red-400">{u.email}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmPermanent(false)}
+                disabled={permanentDeleting}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={handlePermanentDelete}
+                disabled={permanentDeleting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {permanentDeleting
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <iconify-icon icon="solar:trash-bin-minimalistic-bold" width="16" height="16"></iconify-icon>
+                }
+                Видалити назавжди
               </button>
             </div>
           </div>

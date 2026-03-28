@@ -1505,6 +1505,61 @@ app.patch('/api/admin/users/:id/restore', {
   return reply.send({ ok: true })
 })
 
+// Permanently delete users (super_admin only, bulk)
+app.delete('/api/admin/users/permanent', {
+  schema: {
+    tags: ['Admin'],
+    summary: 'Остаточне видалення користувачів',
+    description: 'Тільки super_admin. Видаляє вже м\'яко-видалених користувачів назавжди.',
+    security: [{ cookieAuth: [] }],
+    body: {
+      type: 'object',
+      required: ['ids'],
+      properties: { ids: { type: 'array', items: { type: 'string' } } },
+    },
+    response: {
+      200: { type: 'object', properties: { ok: { type: 'boolean' }, deleted: { type: 'number' } } },
+      400: { $ref: 'Error#' },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'super_admin') return reply.status(403).send({ error: 'Forbidden' })
+
+  const { ids } = req.body as { ids: string[] }
+  if (!ids.length) return reply.status(400).send({ error: 'Немає ID для видалення' })
+
+  // Only allow permanently deleting soft-deleted, non-super_admin users
+  const targets = await db.select({ id: user.id, role: user.role, deletedAt: user.deletedAt })
+    .from(user)
+    .where(inArray(user.id, ids))
+
+  const eligible = targets.filter(t => t.deletedAt !== null && t.role !== 'super_admin' && t.id !== session.user.id)
+  if (!eligible.length) return reply.status(400).send({ error: 'Немає допустимих користувачів для видалення' })
+
+  const eligibleIds = eligible.map(t => t.id)
+
+  await db.transaction(async tx => {
+    await tx.delete(parentChild).where(inArray(parentChild.parentId, eligibleIds))
+    await tx.delete(parentChild).where(inArray(parentChild.childId, eligibleIds))
+    await tx.delete(linkCode).where(inArray(linkCode.studentId, eligibleIds))
+    await tx.delete(booking).where(inArray(booking.studentId, eligibleIds))
+    await tx.delete(enrollment).where(inArray(enrollment.studentId, eligibleIds))
+    await tx.delete(studentProfile).where(inArray(studentProfile.userId, eligibleIds))
+    await tx.delete(coachProfile).where(inArray(coachProfile.userId, eligibleIds))
+    await tx.delete(account).where(inArray(account.userId, eligibleIds))
+    await tx.delete(sessionTable).where(inArray(sessionTable.userId, eligibleIds))
+    await tx.delete(user).where(inArray(user.id, eligibleIds))
+  })
+
+  return reply.send({ ok: true, deleted: eligibleIds.length })
+})
+
 // ── Enrollments ───────────────────────────────────────────────────────────────
 
 // List coaches for dropdown

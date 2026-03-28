@@ -19,7 +19,7 @@ const SECTIONS = [
   {
     icon: 'solar:calendar-bold-duotone',
     label: 'Розклад',
-    desc: 'Доступні слоти',
+    desc: 'Мої доступні слоти',
     to: '/coach/schedule',
     color: 'from-blue-500/20 to-cyan-500/20',
   },
@@ -33,8 +33,8 @@ const SECTIONS = [
   {
     icon: 'solar:users-group-rounded-bold-duotone',
     label: 'Учні',
-    desc: 'Бронювання та сесії',
-    to: '/coach/bookings',
+    desc: 'Мій список учнів',
+    to: '/coach/students',
     color: 'from-orange-500/20 to-amber-500/20',
   },
 ]

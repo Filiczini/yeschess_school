@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from './db/index.js'
 import * as schema from './db/schema.js'
+import { sendPasswordReset } from './email.js'
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
@@ -17,13 +18,16 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordReset(user.email, url)
+    },
   },
   session: {
-    expiresIn: 60 * 60 * 24 * 30,      // 30 днів
-    updateAge: 60 * 60 * 24,            // оновлювати куку кожні 24 год
+    expiresIn: 60 * 60 * 24 * 30,
+    updateAge: 60 * 60 * 24,
     cookieCache: {
       enabled: true,
-      maxAge: 5 * 60,                   // кешувати сесію на клієнті 5 хв
+      maxAge: 5 * 60,
     },
   },
   user: {

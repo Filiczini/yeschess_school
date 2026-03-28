@@ -18,6 +18,7 @@ import CoachStudents from './pages/CoachStudents'
 import CoachSchedule from './pages/CoachSchedule'
 import CoachBookings from './pages/CoachBookings'
 import StudentBooking from './pages/StudentBooking'
+import NotFound from './pages/NotFound'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -37,6 +38,8 @@ export default function App() {
       <Route path="/coach/schedule" element={<ProtectedRoute><CoachSchedule /></ProtectedRoute>} />
       <Route path="/coach/bookings" element={<ProtectedRoute><CoachBookings /></ProtectedRoute>} />
       <Route path="/student/booking" element={<ProtectedRoute><StudentBooking /></ProtectedRoute>} />
+
+      <Route path="*" element={<NotFound />} />
 
       {/* Admin — shared layout with sidebar */}
       <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>

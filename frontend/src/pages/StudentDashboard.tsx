@@ -109,12 +109,68 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* No profile hint */}
-        {!loading && !hasProfile && (
-          <div className="bg-blue-400/10 border border-blue-400/20 rounded-2xl p-4 mb-4 text-sm text-blue-200 flex gap-3">
-            <iconify-icon icon="solar:info-circle-linear" width="20" height="20" className="flex-shrink-0 mt-0.5"></iconify-icon>
+        {/* Onboarding — new user with no profile and no coach */}
+        {!loading && !hasProfile && !coach && (
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-5 mb-4 text-white">
+            <div className="flex items-center gap-2 mb-4">
+              <iconify-icon icon="solar:rocket-bold-duotone" width="20" height="20" className="text-amber-300"></iconify-icon>
+              <span className="font-semibold text-sm">Як почати навчання</span>
+            </div>
+            <div className="space-y-3">
+              {[
+                {
+                  num: '1',
+                  done: false,
+                  title: 'Заповни свій профіль',
+                  desc: 'Вкажи рівень, рейтинг і нікнейми',
+                  action: { label: 'Заповнити', to: '/student/profile/edit' },
+                  color: 'bg-violet-400/20 border-violet-400/30 text-violet-300',
+                },
+                {
+                  num: '2',
+                  done: false,
+                  title: 'Дочекайся призначення тренера',
+                  desc: 'Адміністратор призначить тобі тренера найближчим часом',
+                  action: null,
+                  color: 'bg-blue-400/20 border-blue-400/30 text-blue-300',
+                },
+                {
+                  num: '3',
+                  done: false,
+                  title: 'Запишись на перше заняття',
+                  desc: 'Обери зручний час у розкладі тренера',
+                  action: null,
+                  color: 'bg-emerald-400/20 border-emerald-400/30 text-emerald-300',
+                },
+              ].map(step => (
+                <div key={step.num} className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold ${step.color}`}>
+                    {step.num}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{step.title}</div>
+                    <div className="text-xs text-blue-200 mt-0.5">{step.desc}</div>
+                    {step.action && (
+                      <Link
+                        to={step.action.to}
+                        className="inline-block mt-1.5 text-xs text-white underline underline-offset-2"
+                      >
+                        {step.action.label} →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Profile hint — has no profile but has a coach */}
+        {!loading && !hasProfile && coach && (
+          <div className="bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4 mb-4 text-sm text-amber-200 flex gap-3">
+            <iconify-icon icon="solar:pen-bold-duotone" width="20" height="20" className="flex-shrink-0 mt-0.5 text-amber-300"></iconify-icon>
             <span>
-              Заповни свій профіль — вкажи рейтинг, рівень і нікнейми на chess.com / lichess.
+              Заповни профіль — тренер зможе краще підготуватись до занять.
               {' '}<Link to="/student/profile/edit" className="underline underline-offset-2 text-white">Заповнити зараз</Link>
             </span>
           </div>
@@ -163,25 +219,27 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Quick actions */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <button
-            onClick={() => navigate('/student/booking')}
-            className="bg-gradient-to-br from-violet-500/20 to-purple-500/20 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white hover:border-white/40 transition-colors text-left"
-          >
-            <iconify-icon icon="solar:calendar-add-bold-duotone" width="26" height="26" className="mb-2 block"></iconify-icon>
-            <div className="font-semibold text-sm font-heading">Записатись</div>
-            <div className="text-xs text-blue-200 mt-0.5">Обрати слот</div>
-          </button>
-          <Link
-            to="/student/booking"
-            className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white hover:border-white/40 transition-colors"
-          >
-            <iconify-icon icon="solar:calendar-check-bold-duotone" width="26" height="26" className="mb-2 block"></iconify-icon>
-            <div className="font-semibold text-sm font-heading">Мої заняття</div>
-            <div className="text-xs text-blue-200 mt-0.5">Розклад та статус</div>
-          </Link>
-        </div>
+        {/* Quick actions — only show when coach is assigned */}
+        {!loading && coach && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => navigate('/student/booking')}
+              className="bg-gradient-to-br from-violet-500/20 to-purple-500/20 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white hover:border-white/40 transition-colors text-left"
+            >
+              <iconify-icon icon="solar:calendar-add-bold-duotone" width="26" height="26" className="mb-2 block"></iconify-icon>
+              <div className="font-semibold text-sm font-heading">Записатись</div>
+              <div className="text-xs text-blue-200 mt-0.5">Обрати слот</div>
+            </button>
+            <Link
+              to="/student/booking"
+              className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white hover:border-white/40 transition-colors"
+            >
+              <iconify-icon icon="solar:calendar-check-bold-duotone" width="26" height="26" className="mb-2 block"></iconify-icon>
+              <div className="font-semibold text-sm font-heading">Мої заняття</div>
+              <div className="text-xs text-blue-200 mt-0.5">Розклад та статус</div>
+            </Link>
+          </div>
+        )}
 
         {/* Assigned coach */}
         <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">

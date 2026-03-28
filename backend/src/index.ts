@@ -9,6 +9,7 @@ import { user, coachProfile, enrollment, lead, studentProfile, coachSchedule, bo
 import { eq, sql, asc, and, gte, lt, ne } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from './auth.js'
+import { sendWelcome, sendCoachAssigned, sendBookingConfirmed, sendBookingCancelled } from './email.js'
 
 const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
 type SelfAssignableRole = typeof SELF_ASSIGNABLE_ROLES[number]
@@ -162,6 +163,10 @@ app.patch('/api/users/me/role', {
     contactMethod: contactMethod ?? null,
     instagram: instagram ?? null,
   }).where(eq(user.id, session.user.id))
+
+  // Welcome email on first role assignment
+  sendWelcome(session.user.email, session.user.name).catch(() => {})
+
   return reply.send({ ok: true, status })
 })
 
@@ -816,6 +821,14 @@ app.patch('/api/bookings/:id/status', {
 
   if (!b) return reply.status(404).send({ error: 'Booking not found' })
 
+  const [bookingFull] = await db
+    .select({
+      scheduledAt: booking.scheduledAt,
+      durationMin: booking.durationMin,
+      studentId: booking.studentId,
+    })
+    .from(booking).where(eq(booking.id, id))
+
   const [updated] = await db
     .update(booking)
     .set({
@@ -826,6 +839,33 @@ app.patch('/api/bookings/:id/status', {
     })
     .where(eq(booking.id, id))
     .returning({ id: booking.id, status: booking.status })
+
+  // Email: notify student about booking status change
+  if (bookingFull && (status === 'confirmed' || status === 'cancelled')) {
+    const studentUserAlias = alias(user, 'student_user_email')
+    const coachUserEmail = alias(user, 'coach_user_email2')
+    const [studentRow] = await db
+      .select({ name: studentUserAlias.name, email: studentUserAlias.email })
+      .from(user).where(eq(user.id, bookingFull.studentId))
+    const [coachRow] = await db
+      .select({ name: coachUserEmail.name })
+      .from(coachProfile)
+      .innerJoin(coachUserEmail, eq(coachProfile.userId, coachUserEmail.id))
+      .where(eq(coachProfile.id, profile.id))
+    if (studentRow && coachRow) {
+      if (status === 'confirmed') {
+        sendBookingConfirmed(
+          studentRow.email, studentRow.name, coachRow.name,
+          bookingFull.scheduledAt, bookingFull.durationMin,
+        ).catch(() => {})
+      } else {
+        sendBookingCancelled(
+          studentRow.email, studentRow.name, coachRow.name,
+          bookingFull.scheduledAt, cancelReason,
+        ).catch(() => {})
+      }
+    }
+  }
 
   return reply.send(updated)
 })
@@ -1464,6 +1504,20 @@ app.post('/api/admin/enrollments', {
     .insert(enrollment)
     .values({ studentId, coachId, assignedBy: session.user.id, notes })
     .returning({ id: enrollment.id })
+
+  // Email: notify student about coach assignment
+  const coachUserAlias = alias(user, 'coach_user_email')
+  const [studentRow] = await db
+    .select({ name: user.name, email: user.email })
+    .from(user).where(eq(user.id, studentId))
+  const [coachRow] = await db
+    .select({ name: coachUserAlias.name, email: coachUserAlias.email })
+    .from(coachProfile)
+    .innerJoin(coachUserAlias, eq(coachProfile.userId, coachUserAlias.id))
+    .where(eq(coachProfile.id, coachId))
+  if (studentRow && coachRow) {
+    sendCoachAssigned(studentRow.email, studentRow.name, coachRow.name, coachRow.email).catch(() => {})
+  }
 
   return reply.status(201).send(created)
 })

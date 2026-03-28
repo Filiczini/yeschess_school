@@ -146,12 +146,12 @@ function BookingCard({
 }) {
   return (
     <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white">
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
           <div className="font-semibold truncate">{b.studentName}</div>
           <div className="text-sm text-blue-200 truncate">{b.studentEmail}</div>
         </div>
-        <span className={`flex-shrink-0 text-xs px-2.5 py-1 border rounded-full ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
+        <span className={`flex-shrink-0 text-xs px-2 py-1 border rounded-full whitespace-nowrap ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
           {STATUS_LABEL[b.status] ?? b.status}
         </span>
       </div>

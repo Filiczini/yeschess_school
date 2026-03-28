@@ -210,7 +210,7 @@ export default function StudentBooking() {
                       Тренер не доступний в цей день
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       {slots.map(slot => (
                         <button
                           key={slot.time}

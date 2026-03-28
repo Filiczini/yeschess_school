@@ -5,7 +5,7 @@ import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { db } from './db/index.js'
-import { user, account, coachProfile, enrollment, lead, studentProfile, coachSchedule, booking, parentChild, linkCode, payout, review, purchasedPackage, sessionPackage, payment, tournamentParticipant, subscription } from './db/schema.js'
+import { user, account, session as sessionTable, coachProfile, enrollment, lead, studentProfile, coachSchedule, booking, parentChild, linkCode, payout, review, purchasedPackage, sessionPackage, payment, tournamentParticipant, subscription } from './db/schema.js'
 import { eq, sql, asc, and, gte, lt, ne, inArray, isNull, isNotNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { randomUUID } from 'node:crypto'
@@ -105,6 +105,35 @@ app.all('/api/auth/*', async (req, reply) => {
 
   const webRequest = new Request(url, { method: req.method, headers, body })
   const response = await auth.handler(webRequest)
+
+  // Block sign-in for soft-deleted / suspended accounts
+  if (
+    req.method === 'POST' &&
+    req.url.includes('/sign-in') &&
+    response.status === 200
+  ) {
+    const responseText = await response.text()
+    try {
+      const data = JSON.parse(responseText) as { user?: { id?: string }; session?: { token?: string } }
+      if (data?.user?.id) {
+        const [dbUser] = await db.select({ deletedAt: user.deletedAt, status: user.status })
+          .from(user)
+          .where(eq(user.id, data.user.id))
+          .limit(1)
+        if (dbUser && (dbUser.deletedAt !== null || dbUser.status === 'suspended')) {
+          if (data.session?.token) {
+            await db.delete(sessionTable).where(eq(sessionTable.token, data.session.token))
+          }
+          return reply.status(401).send({ error: 'Акаунт заблоковано або видалено' })
+        }
+      }
+    } catch {
+      // If parsing fails, forward the original response
+    }
+    reply.status(response.status)
+    response.headers.forEach((value, key) => reply.header(key, value))
+    return reply.send(responseText)
+  }
 
   reply.status(response.status)
   response.headers.forEach((value, key) => reply.header(key, value))
@@ -1090,6 +1119,48 @@ app.get('/api/student/bookings', {
     .orderBy(asc(booking.scheduledAt))
 
   return reply.send(rows)
+})
+
+// Get own parent
+app.get('/api/student/parent', {
+  schema: {
+    tags: ['Student'],
+    summary: 'Отримати батька/матір учня',
+    security: [{ cookieAuth: [] }],
+    response: {
+      200: {
+        nullable: true,
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          email: { type: 'string', format: 'email' },
+          phone: { type: 'string', nullable: true },
+          contactMethod: { type: 'string', nullable: true },
+        },
+      },
+      401: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const parentUser = alias(user, 'parent_user')
+
+  const [row] = await db
+    .select({
+      id: parentUser.id,
+      name: parentUser.name,
+      email: parentUser.email,
+      phone: parentUser.phone,
+      contactMethod: parentUser.contactMethod,
+    })
+    .from(parentChild)
+    .innerJoin(parentUser, eq(parentChild.parentId, parentUser.id))
+    .where(eq(parentChild.childId, session.user.id))
+
+  return reply.send(row ?? null)
 })
 
 // Student cancels their own booking

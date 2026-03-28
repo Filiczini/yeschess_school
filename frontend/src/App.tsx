@@ -12,6 +12,12 @@ import CoachDashboard from './pages/CoachDashboard'
 import CoachProfile from './pages/CoachProfile'
 import CoachProfileEdit from './pages/CoachProfileEdit'
 import AdminEnrollments from './pages/AdminEnrollments'
+import StudentDashboard from './pages/StudentDashboard'
+import StudentProfileEdit from './pages/StudentProfileEdit'
+import CoachStudents from './pages/CoachStudents'
+import CoachSchedule from './pages/CoachSchedule'
+import CoachBookings from './pages/CoachBookings'
+import StudentBooking from './pages/StudentBooking'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -22,9 +28,15 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/pending" element={<ProtectedRoute><Pending /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/student/profile/edit" element={<ProtectedRoute><StudentProfileEdit /></ProtectedRoute>} />
       <Route path="/coach" element={<ProtectedRoute><CoachDashboard /></ProtectedRoute>} />
       <Route path="/coach/profile" element={<ProtectedRoute><CoachProfile /></ProtectedRoute>} />
       <Route path="/coach/profile/edit" element={<ProtectedRoute><CoachProfileEdit /></ProtectedRoute>} />
+      <Route path="/coach/students" element={<ProtectedRoute><CoachStudents /></ProtectedRoute>} />
+      <Route path="/coach/schedule" element={<ProtectedRoute><CoachSchedule /></ProtectedRoute>} />
+      <Route path="/coach/bookings" element={<ProtectedRoute><CoachBookings /></ProtectedRoute>} />
+      <Route path="/student/booking" element={<ProtectedRoute><StudentBooking /></ProtectedRoute>} />
 
       {/* Admin — shared layout with sidebar */}
       <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>

@@ -197,6 +197,29 @@ export const coachSchedule = pgTable('coach_schedules', {
 }))
 
 // =============================================================================
+// STUDENTS
+// =============================================================================
+
+export const studentProfile = pgTable('student_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  level: courseLevelEnum('level'),
+  fideRating: integer('fide_rating'),
+  clubRating: integer('club_rating'),
+  chesscomUsername: text('chesscom_username'),
+  lichessUsername: text('lichess_username'),
+  bio: text('bio'),
+  birthdate: timestamp('birthdate'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  levelIdx: index('student_profiles_level_idx').on(t.level),
+}))
+
+// =============================================================================
 // COURSES & LESSONS
 // =============================================================================
 

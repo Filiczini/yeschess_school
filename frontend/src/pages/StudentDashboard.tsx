@@ -30,12 +30,19 @@ const LEVEL_LABELS: Record<string, string> = {
   advanced: 'Просунутий',
 }
 
+interface LinkCodeState {
+  code: string
+  expiresAt: string
+}
+
 export default function StudentDashboard() {
   const { data: session } = useSession()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [coach, setCoach] = useState<CoachInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [linkCode, setLinkCode] = useState<LinkCodeState | null>(null)
+  const [linkCodeLoading, setLinkCodeLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -51,6 +58,13 @@ export default function StudentDashboard() {
   async function handleSignOut() {
     await signOut()
     window.location.href = '/'
+  }
+
+  async function handleGenerateLinkCode() {
+    setLinkCodeLoading(true)
+    const res = await fetch('/api/student/link-code', { method: 'POST', credentials: 'include' })
+    if (res.ok) setLinkCode(await res.json())
+    setLinkCodeLoading(false)
   }
 
   const hasProfile = profile && (
@@ -238,6 +252,42 @@ export default function StudentDashboard() {
               <div className="font-semibold text-sm font-heading">Мої заняття</div>
               <div className="text-xs text-blue-200 mt-0.5">Розклад та статус</div>
             </Link>
+          </div>
+        )}
+
+        {/* Link to parent */}
+        {!loading && (
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+            <h2 className="text-sm font-semibold text-blue-200 mb-3">Прив'язка до батька</h2>
+            {linkCode ? (
+              <div>
+                <p className="text-xs text-blue-200 mb-3">
+                  Передайте цей код батьку — він вводить його у своєму акаунті.
+                  Діє до {new Date(linkCode.expiresAt).toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-center">
+                    <span className="text-2xl font-bold tracking-[0.3em] font-heading">{linkCode.code}</span>
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(linkCode.code)}
+                    className="p-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors"
+                    title="Скопіювати"
+                  >
+                    <iconify-icon icon="solar:copy-linear" width="18" height="18"></iconify-icon>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleGenerateLinkCode}
+                disabled={linkCodeLoading}
+                className="flex items-center gap-2 text-sm text-blue-200 hover:text-white transition-colors disabled:opacity-50"
+              >
+                <iconify-icon icon="solar:link-bold-duotone" width="18" height="18"></iconify-icon>
+                {linkCodeLoading ? 'Генерація...' : 'Отримати код прив\'язки'}
+              </button>
+            )}
           </div>
         )}
 

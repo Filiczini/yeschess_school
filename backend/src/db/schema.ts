@@ -521,6 +521,40 @@ export const payout = pgTable('payouts', {
 }))
 
 // =============================================================================
+// LINK CODES  (учень генерує → батько вводить → parent_child)
+// =============================================================================
+
+export const linkCode = pgTable('link_codes', {
+  code: text('code').primaryKey(),
+  studentId: text('student_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  studentIdx: index('link_codes_student_id_idx').on(t.studentId),
+  expiresAtIdx: index('link_codes_expires_at_idx').on(t.expiresAt),
+}))
+
+// =============================================================================
+// PARENTS
+// =============================================================================
+
+export const parentChild = pgTable('parent_children', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  parentId: text('parent_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  childId: text('child_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  uniqueParentChild: uniqueIndex('parent_children_parent_child_uidx').on(t.parentId, t.childId),
+  parentIdx: index('parent_children_parent_id_idx').on(t.parentId),
+}))
+
+// =============================================================================
 // ENROLLMENTS  (адмін призначає учня до тренера)
 // =============================================================================
 

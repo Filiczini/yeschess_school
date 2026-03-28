@@ -18,6 +18,9 @@ import CoachStudents from './pages/CoachStudents'
 import CoachSchedule from './pages/CoachSchedule'
 import CoachBookings from './pages/CoachBookings'
 import StudentBooking from './pages/StudentBooking'
+import ParentDashboard from './pages/ParentDashboard'
+import ParentAddChild from './pages/ParentAddChild'
+import ParentProfileEdit from './pages/ParentProfileEdit'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import NotFound from './pages/NotFound'
@@ -42,6 +45,9 @@ export default function App() {
       <Route path="/coach/schedule" element={<ProtectedRoute><CoachSchedule /></ProtectedRoute>} />
       <Route path="/coach/bookings" element={<ProtectedRoute><CoachBookings /></ProtectedRoute>} />
       <Route path="/student/booking" element={<ProtectedRoute><StudentBooking /></ProtectedRoute>} />
+      <Route path="/parent" element={<ProtectedRoute><ParentDashboard /></ProtectedRoute>} />
+      <Route path="/parent/add-child" element={<ProtectedRoute><ParentAddChild /></ProtectedRoute>} />
+      <Route path="/parent/profile/edit" element={<ProtectedRoute><ParentProfileEdit /></ProtectedRoute>} />
 
       <Route path="*" element={<NotFound />} />
 

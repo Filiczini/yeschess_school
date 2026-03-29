@@ -9,6 +9,15 @@ interface StudentProfile {
   chesscomUsername: string | null
   lichessUsername: string | null
   bio: string | null
+  birthdate: string | null
+}
+
+interface ParentInfo {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  contactMethod: string | null
 }
 
 interface CoachInfo {
@@ -40,6 +49,7 @@ export default function StudentDashboard() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<StudentProfile | null>(null)
   const [coach, setCoach] = useState<CoachInfo | null>(null)
+  const [parent, setParent] = useState<ParentInfo | null | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [linkCode, setLinkCode] = useState<LinkCodeState | null>(null)
   const [linkCodeLoading, setLinkCodeLoading] = useState(false)
@@ -48,9 +58,11 @@ export default function StudentDashboard() {
     Promise.all([
       fetch('/api/student/profile', { credentials: 'include' }).then(r => r.json()),
       fetch('/api/student/coach', { credentials: 'include' }).then(r => r.json()),
-    ]).then(([p, c]) => {
+      fetch('/api/student/parent', { credentials: 'include' }).then(r => r.json()),
+    ]).then(([p, c, par]) => {
       setProfile(p)
       setCoach(c)
+      setParent(par)
       setLoading(false)
     })
   }, [])
@@ -255,6 +267,23 @@ export default function StudentDashboard() {
           </div>
         )}
 
+        {/* Bio & birthdate */}
+        {!loading && (profile?.bio || profile?.birthdate) && (
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+            {profile.birthdate && (
+              <div className="flex items-center gap-3 text-sm mb-2">
+                <iconify-icon icon="solar:calendar-linear" width="16" height="16" className="text-blue-300 shrink-0"></iconify-icon>
+                <span className="text-blue-200">
+                  {new Date(profile.birthdate).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+            )}
+            {profile.bio && (
+              <p className="text-sm text-blue-100 leading-relaxed">{profile.bio}</p>
+            )}
+          </div>
+        )}
+
         {/* Link to parent */}
         {!loading && (
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
@@ -287,6 +316,33 @@ export default function StudentDashboard() {
                 <iconify-icon icon="solar:link-bold-duotone" width="18" height="18"></iconify-icon>
                 {linkCodeLoading ? 'Генерація...' : 'Отримати код прив\'язки'}
               </button>
+            )}
+          </div>
+        )}
+
+        {/* Parent */}
+        {!loading && parent !== undefined && (
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+            <h2 className="text-sm font-semibold text-blue-200 mb-3">Батько/Мати</h2>
+            {parent ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                  <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" height="20"></iconify-icon>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm truncate">{parent.name}</div>
+                  <div className="text-xs text-blue-200 truncate">{parent.email}</div>
+                  {parent.phone && (
+                    <div className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
+                      <iconify-icon icon="solar:phone-linear" width="12" height="12"></iconify-icon>
+                      {parent.phone}
+                      {parent.contactMethod && <span className="capitalize">· {parent.contactMethod}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-blue-300">Батька не прив'язано</div>
             )}
           </div>
         )}

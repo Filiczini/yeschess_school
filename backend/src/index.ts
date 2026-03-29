@@ -5,10 +5,12 @@ import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { db } from './db/index.js'
-import { user, coachProfile, enrollment, lead, studentProfile, coachSchedule, booking } from './db/schema.js'
-import { eq, sql, asc, and, gte, lt, ne } from 'drizzle-orm'
+import { user, account, session as sessionTable, coachProfile, enrollment, lead, studentProfile, coachSchedule, booking, parentChild, linkCode, payout, review, purchasedPackage, sessionPackage, payment, tournamentParticipant, subscription } from './db/schema.js'
+import { eq, sql, asc, and, gte, lt, ne, inArray, isNull, isNotNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
+import { randomUUID } from 'node:crypto'
 import { auth } from './auth.js'
+import { sendWelcome, sendCoachAssigned, sendBookingConfirmed, sendBookingCancelled } from './email.js'
 
 const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
 type SelfAssignableRole = typeof SELF_ASSIGNABLE_ROLES[number]
@@ -54,6 +56,7 @@ await app.register(swagger, {
       { name: 'Student', description: 'Профіль учня та його заняття' },
       { name: 'Admin', description: 'Адміністрування (admin / super_admin)' },
       { name: 'Enrollments', description: 'Призначення учнів до тренерів' },
+      { name: 'Parent', description: 'Управління дітьми батька/матері' },
       { name: 'Public', description: 'Публічні ендпоінти без авторизації' },
     ],
   },
@@ -102,6 +105,35 @@ app.all('/api/auth/*', async (req, reply) => {
 
   const webRequest = new Request(url, { method: req.method, headers, body })
   const response = await auth.handler(webRequest)
+
+  // Block sign-in for soft-deleted / suspended accounts
+  if (
+    req.method === 'POST' &&
+    req.url.includes('/sign-in') &&
+    response.status === 200
+  ) {
+    const responseText = await response.text()
+    try {
+      const data = JSON.parse(responseText) as { user?: { id?: string }; session?: { token?: string } }
+      if (data?.user?.id) {
+        const [dbUser] = await db.select({ deletedAt: user.deletedAt, status: user.status })
+          .from(user)
+          .where(eq(user.id, data.user.id))
+          .limit(1)
+        if (dbUser && (dbUser.deletedAt !== null || dbUser.status === 'suspended')) {
+          if (data.session?.token) {
+            await db.delete(sessionTable).where(eq(sessionTable.token, data.session.token))
+          }
+          return reply.status(401).send({ error: 'Акаунт заблоковано або видалено' })
+        }
+      }
+    } catch {
+      // If parsing fails, forward the original response
+    }
+    reply.status(response.status)
+    response.headers.forEach((value, key) => reply.header(key, value))
+    return reply.send(responseText)
+  }
 
   reply.status(response.status)
   response.headers.forEach((value, key) => reply.header(key, value))
@@ -162,6 +194,10 @@ app.patch('/api/users/me/role', {
     contactMethod: contactMethod ?? null,
     instagram: instagram ?? null,
   }).where(eq(user.id, session.user.id))
+
+  // Welcome email on first role assignment
+  sendWelcome(session.user.email, session.user.name).catch(() => {})
+
   return reply.send({ ok: true, status })
 })
 
@@ -182,6 +218,9 @@ app.get('/api/users/me', {
           role: { type: 'string', enum: ['student', 'parent', 'coach', 'school_owner', 'admin', 'super_admin'] },
           status: { type: 'string', enum: ['active', 'pending', 'suspended'] },
           plan: { type: 'string', enum: ['free', 'pro', 'elite'] },
+          phone: { type: 'string', nullable: true },
+          contactMethod: { type: 'string', nullable: true },
+          instagram: { type: 'string', nullable: true },
         },
       },
       401: { $ref: 'Error#' },
@@ -198,6 +237,9 @@ app.get('/api/users/me', {
     role: user.role,
     status: user.status,
     plan: user.plan,
+    phone: user.phone,
+    contactMethod: user.contactMethod,
+    instagram: user.instagram,
   }).from(user).where(eq(user.id, session.user.id))
 
   return reply.send(u)
@@ -816,6 +858,14 @@ app.patch('/api/bookings/:id/status', {
 
   if (!b) return reply.status(404).send({ error: 'Booking not found' })
 
+  const [bookingFull] = await db
+    .select({
+      scheduledAt: booking.scheduledAt,
+      durationMin: booking.durationMin,
+      studentId: booking.studentId,
+    })
+    .from(booking).where(eq(booking.id, id))
+
   const [updated] = await db
     .update(booking)
     .set({
@@ -826,6 +876,33 @@ app.patch('/api/bookings/:id/status', {
     })
     .where(eq(booking.id, id))
     .returning({ id: booking.id, status: booking.status })
+
+  // Email: notify student about booking status change
+  if (bookingFull && (status === 'confirmed' || status === 'cancelled')) {
+    const studentUserAlias = alias(user, 'student_user_email')
+    const coachUserEmail = alias(user, 'coach_user_email2')
+    const [studentRow] = await db
+      .select({ name: studentUserAlias.name, email: studentUserAlias.email })
+      .from(user).where(eq(user.id, bookingFull.studentId))
+    const [coachRow] = await db
+      .select({ name: coachUserEmail.name })
+      .from(coachProfile)
+      .innerJoin(coachUserEmail, eq(coachProfile.userId, coachUserEmail.id))
+      .where(eq(coachProfile.id, profile.id))
+    if (studentRow && coachRow) {
+      if (status === 'confirmed') {
+        sendBookingConfirmed(
+          studentRow.email, studentRow.name, coachRow.name,
+          bookingFull.scheduledAt, bookingFull.durationMin,
+        ).catch(() => {})
+      } else {
+        sendBookingCancelled(
+          studentRow.email, studentRow.name, coachRow.name,
+          bookingFull.scheduledAt, cancelReason,
+        ).catch(() => {})
+      }
+    }
+  }
 
   return reply.send(updated)
 })
@@ -1044,6 +1121,48 @@ app.get('/api/student/bookings', {
   return reply.send(rows)
 })
 
+// Get own parent
+app.get('/api/student/parent', {
+  schema: {
+    tags: ['Student'],
+    summary: 'Отримати батька/матір учня',
+    security: [{ cookieAuth: [] }],
+    response: {
+      200: {
+        nullable: true,
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          email: { type: 'string', format: 'email' },
+          phone: { type: 'string', nullable: true },
+          contactMethod: { type: 'string', nullable: true },
+        },
+      },
+      401: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const parentUser = alias(user, 'parent_user')
+
+  const [row] = await db
+    .select({
+      id: parentUser.id,
+      name: parentUser.name,
+      email: parentUser.email,
+      phone: parentUser.phone,
+      contactMethod: parentUser.contactMethod,
+    })
+    .from(parentChild)
+    .innerJoin(parentUser, eq(parentChild.parentId, parentUser.id))
+    .where(eq(parentChild.childId, session.user.id))
+
+  return reply.send(row ?? null)
+})
+
 // Student cancels their own booking
 app.patch('/api/student/bookings/:id/cancel', {
   schema: {
@@ -1213,6 +1332,7 @@ app.get('/api/admin/users', {
       type: 'object',
       properties: {
         role: { type: 'string', enum: ['student', 'parent', 'coach', 'school_owner', 'admin', 'super_admin'], description: 'Фільтр по ролі' },
+        deleted: { type: 'boolean', description: 'true — показати видалених користувачів' },
       },
     },
     response: {
@@ -1228,6 +1348,7 @@ app.get('/api/admin/users', {
             status: { type: 'string' },
             plan: { type: 'string' },
             createdAt: { type: 'string', format: 'date-time' },
+            deletedAt: { type: 'string', format: 'date-time', nullable: true },
           },
         },
       },
@@ -1244,9 +1365,12 @@ app.get('/api/admin/users', {
     return reply.status(403).send({ error: 'Forbidden' })
   }
 
-  const { role } = req.query as { role?: string }
+  const { role, deleted } = req.query as { role?: string; deleted?: boolean }
 
-  const query = db.select({
+  const baseFilter = deleted ? isNotNull(user.deletedAt) : isNull(user.deletedAt)
+  const filter = role ? and(baseFilter, eq(user.role, role as typeof user.role._.data)) : baseFilter
+
+  const users = await db.select({
     id: user.id,
     name: user.name,
     email: user.email,
@@ -1254,11 +1378,8 @@ app.get('/api/admin/users', {
     status: user.status,
     plan: user.plan,
     createdAt: user.createdAt,
-  }).from(user).orderBy(asc(user.createdAt))
-
-  const users = role
-    ? await query.where(eq(user.role, role as typeof user.role._.data))
-    : await query
+    deletedAt: user.deletedAt,
+  }).from(user).where(filter).orderBy(asc(user.createdAt))
 
   return reply.send(users)
 })
@@ -1300,6 +1421,143 @@ app.get('/api/admin/stats', {
     pendingCount: pendingCount.count,
     enrollmentsCount: enrollmentsCount.count,
   })
+})
+
+// Soft-delete user (super_admin only)
+app.delete('/api/admin/users/:id', {
+  schema: {
+    tags: ['Admin'],
+    summary: 'М\'яке видалення користувача',
+    description: 'Тільки super_admin. Ставить deletedAt — можна відновити через PATCH restore. Не можна видалити себе або super_admin.',
+    security: [{ cookieAuth: [] }],
+    params: {
+      type: 'object',
+      required: ['id'],
+      properties: { id: { type: 'string', description: 'User ID' } },
+    },
+    response: {
+      200: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      400: { $ref: 'Error#' },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+      404: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'super_admin') return reply.status(403).send({ error: 'Forbidden' })
+
+  const { id } = req.params as { id: string }
+
+  if (id === session.user.id) return reply.status(400).send({ error: 'Не можна видалити себе' })
+
+  const [target] = await db.select({ role: user.role, deletedAt: user.deletedAt }).from(user).where(eq(user.id, id))
+  if (!target) return reply.status(404).send({ error: 'Користувача не знайдено' })
+  if (target.role === 'super_admin') return reply.status(400).send({ error: 'Не можна видалити super_admin' })
+  if (target.deletedAt) return reply.status(400).send({ error: 'Вже видалено' })
+
+  await db.update(user)
+    .set({ deletedAt: new Date(), status: 'suspended', updatedAt: new Date() })
+    .where(eq(user.id, id))
+
+  return reply.send({ ok: true })
+})
+
+// Restore soft-deleted user (super_admin only)
+app.patch('/api/admin/users/:id/restore', {
+  schema: {
+    tags: ['Admin'],
+    summary: 'Відновити видаленого користувача',
+    security: [{ cookieAuth: [] }],
+    params: {
+      type: 'object',
+      required: ['id'],
+      properties: { id: { type: 'string', description: 'User ID' } },
+    },
+    response: {
+      200: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      400: { $ref: 'Error#' },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+      404: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'super_admin') return reply.status(403).send({ error: 'Forbidden' })
+
+  const { id } = req.params as { id: string }
+
+  const [target] = await db.select({ deletedAt: user.deletedAt }).from(user).where(eq(user.id, id))
+  if (!target) return reply.status(404).send({ error: 'Користувача не знайдено' })
+  if (!target.deletedAt) return reply.status(400).send({ error: 'Користувач не видалений' })
+
+  await db.update(user)
+    .set({ deletedAt: null, status: 'active', updatedAt: new Date() })
+    .where(eq(user.id, id))
+
+  return reply.send({ ok: true })
+})
+
+// Permanently delete users (super_admin only, bulk)
+app.delete('/api/admin/users/permanent', {
+  schema: {
+    tags: ['Admin'],
+    summary: 'Остаточне видалення користувачів',
+    description: 'Тільки super_admin. Видаляє вже м\'яко-видалених користувачів назавжди.',
+    security: [{ cookieAuth: [] }],
+    body: {
+      type: 'object',
+      required: ['ids'],
+      properties: { ids: { type: 'array', items: { type: 'string' } } },
+    },
+    response: {
+      200: { type: 'object', properties: { ok: { type: 'boolean' }, deleted: { type: 'number' } } },
+      400: { $ref: 'Error#' },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'super_admin') return reply.status(403).send({ error: 'Forbidden' })
+
+  const { ids } = req.body as { ids: string[] }
+  if (!ids.length) return reply.status(400).send({ error: 'Немає ID для видалення' })
+
+  // Only allow permanently deleting soft-deleted, non-super_admin users
+  const targets = await db.select({ id: user.id, role: user.role, deletedAt: user.deletedAt })
+    .from(user)
+    .where(inArray(user.id, ids))
+
+  const eligible = targets.filter(t => t.deletedAt !== null && t.role !== 'super_admin' && t.id !== session.user.id)
+  if (!eligible.length) return reply.status(400).send({ error: 'Немає допустимих користувачів для видалення' })
+
+  const eligibleIds = eligible.map(t => t.id)
+
+  await db.transaction(async tx => {
+    await tx.delete(parentChild).where(inArray(parentChild.parentId, eligibleIds))
+    await tx.delete(parentChild).where(inArray(parentChild.childId, eligibleIds))
+    await tx.delete(linkCode).where(inArray(linkCode.studentId, eligibleIds))
+    await tx.delete(booking).where(inArray(booking.studentId, eligibleIds))
+    await tx.delete(enrollment).where(inArray(enrollment.studentId, eligibleIds))
+    await tx.delete(studentProfile).where(inArray(studentProfile.userId, eligibleIds))
+    await tx.delete(coachProfile).where(inArray(coachProfile.userId, eligibleIds))
+    await tx.delete(account).where(inArray(account.userId, eligibleIds))
+    await tx.delete(sessionTable).where(inArray(sessionTable.userId, eligibleIds))
+    await tx.delete(user).where(inArray(user.id, eligibleIds))
+  })
+
+  return reply.send({ ok: true, deleted: eligibleIds.length })
 })
 
 // ── Enrollments ───────────────────────────────────────────────────────────────
@@ -1465,6 +1723,20 @@ app.post('/api/admin/enrollments', {
     .values({ studentId, coachId, assignedBy: session.user.id, notes })
     .returning({ id: enrollment.id })
 
+  // Email: notify student about coach assignment
+  const coachUserAlias = alias(user, 'coach_user_email')
+  const [studentRow] = await db
+    .select({ name: user.name, email: user.email })
+    .from(user).where(eq(user.id, studentId))
+  const [coachRow] = await db
+    .select({ name: coachUserAlias.name, email: coachUserAlias.email })
+    .from(coachProfile)
+    .innerJoin(coachUserAlias, eq(coachProfile.userId, coachUserAlias.id))
+    .where(eq(coachProfile.id, coachId))
+  if (studentRow && coachRow) {
+    sendCoachAssigned(studentRow.email, studentRow.name, coachRow.name, coachRow.email).catch(() => {})
+  }
+
   return reply.status(201).send(created)
 })
 
@@ -1497,6 +1769,307 @@ app.delete('/api/admin/enrollments/:id', {
   const { id } = req.params as { id: string }
   await db.delete(enrollment).where(eq(enrollment.id, id))
   return reply.send({ ok: true })
+})
+
+// Update parent contact info
+app.patch('/api/parent/profile', {
+  schema: {
+    tags: ['Parent'],
+    summary: 'Оновити контактну інформацію батька',
+    security: [{ cookieAuth: [] }],
+    body: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        phone: { type: 'string' },
+        contactMethod: { type: 'string' },
+        instagram: { type: 'string' },
+      },
+    },
+    response: {
+      200: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Forbidden' })
+
+  const { name, phone, contactMethod, instagram } = req.body as {
+    name?: string; phone?: string; contactMethod?: string; instagram?: string
+  }
+
+  await db.update(user).set({
+    ...(name !== undefined && { name }),
+    phone: phone ?? null,
+    contactMethod: contactMethod ?? null,
+    instagram: instagram ?? null,
+    updatedAt: new Date(),
+  }).where(eq(user.id, session.user.id))
+
+  return reply.send({ ok: true })
+})
+
+// ── Link codes ────────────────────────────────────────────────────────────────
+
+// Student generates a pairing code
+app.post('/api/student/link-code', {
+  schema: {
+    tags: ['Student'],
+    summary: 'Згенерувати код прив\'язки до батька',
+    description: 'Повертає 8-символьний код, дійсний 24 години. Старі коди для цього учня видаляються.',
+    security: [{ cookieAuth: [] }],
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', example: '8X4K92JF' },
+          expiresAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'student') return reply.status(403).send({ error: 'Тільки для учнів' })
+
+  // Remove old codes for this student
+  await db.delete(linkCode).where(eq(linkCode.studentId, session.user.id))
+
+  const code = randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+  await db.insert(linkCode).values({ code, studentId: session.user.id, expiresAt })
+
+  return reply.send({ code, expiresAt })
+})
+
+// Parent links an existing student by code
+app.post('/api/parent/link-child', {
+  schema: {
+    tags: ['Parent'],
+    summary: 'Прив\'язати існуючого учня за кодом',
+    security: [{ cookieAuth: [] }],
+    body: {
+      type: 'object',
+      required: ['code'],
+      properties: {
+        code: { type: 'string' },
+      },
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          childId: { type: 'string' },
+          childName: { type: 'string' },
+        },
+      },
+      400: { $ref: 'Error#' },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+      404: { $ref: 'Error#' },
+      409: { description: 'Вже прив\'язано', type: 'object', properties: { error: { type: 'string' } } },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Тільки для батьків' })
+
+  const { code } = req.body as { code: string }
+
+  const [row] = await db
+    .select({ studentId: linkCode.studentId, expiresAt: linkCode.expiresAt, name: user.name })
+    .from(linkCode)
+    .innerJoin(user, eq(linkCode.studentId, user.id))
+    .where(eq(linkCode.code, code.toUpperCase().trim()))
+
+  if (!row) return reply.status(404).send({ error: 'Код не знайдено' })
+  if (row.expiresAt < new Date()) return reply.status(400).send({ error: 'Код прострочений' })
+
+  const [existing] = await db
+    .select({ id: parentChild.id })
+    .from(parentChild)
+    .where(and(eq(parentChild.parentId, session.user.id), eq(parentChild.childId, row.studentId)))
+
+  if (existing) return reply.status(409).send({ error: 'Дитину вже прив\'язано до вашого акаунту' })
+
+  await db.insert(parentChild).values({ parentId: session.user.id, childId: row.studentId })
+  await db.delete(linkCode).where(eq(linkCode.code, code.toUpperCase().trim()))
+
+  return reply.send({ childId: row.studentId, childName: row.name })
+})
+
+// ── Parent ────────────────────────────────────────────────────────────────────
+
+// Get parent's children with their profiles and coaches
+app.get('/api/parent/children', {
+  schema: {
+    tags: ['Parent'],
+    summary: 'Список дітей батька',
+    security: [{ cookieAuth: [] }],
+    response: {
+      200: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            level: { type: 'string', nullable: true, enum: ['beginner', 'intermediate', 'advanced'] },
+            fideRating: { type: 'integer', nullable: true },
+            clubRating: { type: 'integer', nullable: true },
+            coachName: { type: 'string', nullable: true },
+            coachTitle: { type: 'string', nullable: true },
+            upcomingBookings: { type: 'integer' },
+          },
+        },
+      },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Forbidden' })
+
+  const childUser = alias(user, 'child_user')
+  const coachUser = alias(user, 'coach_user')
+
+  const rows = await db
+    .select({
+      id: childUser.id,
+      name: childUser.name,
+      email: childUser.email,
+      level: studentProfile.level,
+      fideRating: studentProfile.fideRating,
+      clubRating: studentProfile.clubRating,
+      coachName: coachUser.name,
+      coachTitle: coachProfile.title,
+    })
+    .from(parentChild)
+    .innerJoin(childUser, eq(parentChild.childId, childUser.id))
+    .leftJoin(studentProfile, eq(studentProfile.userId, childUser.id))
+    .leftJoin(enrollment, eq(enrollment.studentId, childUser.id))
+    .leftJoin(coachProfile, eq(coachProfile.id, enrollment.coachId))
+    .leftJoin(coachUser, eq(coachProfile.userId, coachUser.id))
+    .where(eq(parentChild.parentId, session.user.id))
+
+  if (rows.length === 0) return reply.send([])
+
+  // Count upcoming bookings per child
+  const childIds = rows.map(r => r.id)
+  const now = new Date()
+  const bookingCounts = await db
+    .select({
+      studentId: booking.studentId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(booking)
+    .where(and(
+      inArray(booking.studentId, childIds),
+      gte(booking.scheduledAt, now),
+      ne(booking.status, 'cancelled'),
+    ))
+    .groupBy(booking.studentId)
+
+  const countMap = Object.fromEntries(bookingCounts.map(b => [b.studentId, b.count]))
+
+  return reply.send(rows.map(r => ({
+    ...r,
+    upcomingBookings: countMap[r.id] ?? 0,
+  })))
+})
+
+// Create child account (student) linked to parent
+app.post('/api/parent/children', {
+  schema: {
+    tags: ['Parent'],
+    summary: 'Додати дитину',
+    description: 'Створює акаунт учня та прив\'язує його до батьківського акаунту.',
+    security: [{ cookieAuth: [] }],
+    body: {
+      type: 'object',
+      required: ['name', 'email', 'password', 'level'],
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string', format: 'email' },
+        password: { type: 'string', minLength: 8 },
+        level: { type: 'string', enum: ['beginner', 'intermediate', 'advanced'] },
+        birthdate: { type: 'string', format: 'date', description: 'YYYY-MM-DD' },
+      },
+    },
+    response: {
+      201: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+      },
+      400: { $ref: 'Error#' },
+      401: { $ref: 'Error#' },
+      403: { $ref: 'Error#' },
+      409: { description: 'Email вже використовується', type: 'object', properties: { error: { type: 'string' } } },
+    },
+  },
+}, async (req, reply) => {
+  const session = await getSession(req as Parameters<typeof getSession>[0])
+  if (!session) return reply.status(401).send({ error: 'Unauthorized' })
+
+  const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
+  if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Forbidden' })
+
+  const { name, email, password, level, birthdate } = req.body as {
+    name: string
+    email: string
+    password: string
+    level: string
+    birthdate?: string
+  }
+
+  // Check email uniqueness
+  const [existing] = await db.select({ id: user.id }).from(user).where(eq(user.email, email))
+  if (existing) return reply.status(409).send({ error: 'Email вже використовується' })
+
+  // Use Better Auth's own sign-up so the password is hashed with the correct algorithm
+  const signUpResult = await auth.api.signUpEmail({
+    body: { email, password, name },
+    headers: new Headers(),
+  })
+
+  const childId = signUpResult.user.id
+
+  // Set role + status (Better Auth defaults to 'student' already, but be explicit)
+  await db.update(user)
+    .set({ role: 'student', status: 'active', updatedAt: new Date() })
+    .where(eq(user.id, childId))
+
+  await db.insert(studentProfile).values({
+    userId: childId,
+    level: level as typeof studentProfile.level._.data,
+    birthdate: birthdate ? new Date(birthdate) : null,
+  })
+
+  await db.insert(parentChild).values({
+    parentId: session.user.id,
+    childId,
+  })
+
+  return reply.status(201).send({ id: childId })
 })
 
 // ── Public ────────────────────────────────────────────────────────────────────

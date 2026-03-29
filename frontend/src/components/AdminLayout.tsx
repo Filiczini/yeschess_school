@@ -105,7 +105,7 @@ export default function AdminLayout() {
             <button
               onClick={handleSignOut}
               title="Вийти"
-              className="text-gray-400 group-hover:text-brand-light transition-colors"
+              className="text-gray-400 group-hover:text-brand-light transition-colors cursor-pointer"
             >
               <iconify-icon icon="solar:logout-2-linear" width="18" height="18"></iconify-icon>
             </button>

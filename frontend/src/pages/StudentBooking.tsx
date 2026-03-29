@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 
 interface CoachInfo {
   coachProfileId: string
@@ -52,8 +52,7 @@ function todayStr() {
 }
 
 export default function StudentBooking() {
-  const navigate = useNavigate()
-  const [coach, setCoach] = useState<CoachInfo | null>(null)
+const [coach, setCoach] = useState<CoachInfo | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -210,7 +209,7 @@ export default function StudentBooking() {
                       Тренер не доступний в цей день
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       {slots.map(slot => (
                         <button
                           key={slot.time}

@@ -39,6 +39,8 @@ export default function CoachBookings() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [cancelDialog, setCancelDialog] = useState<{ id: string } | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
 
   useEffect(() => {
     fetch('/api/coach/bookings', { credentials: 'include' })
@@ -49,18 +51,31 @@ export default function CoachBookings() {
       })
   }, [])
 
-  async function updateStatus(id: string, status: 'confirmed' | 'completed' | 'cancelled', cancelReason?: string) {
+  async function updateStatus(id: string, status: 'confirmed' | 'completed' | 'cancelled', reason?: string) {
     setUpdating(id)
     const res = await fetch(`/api/bookings/${id}/status`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, cancelReason }),
+      body: JSON.stringify({ status, cancelReason: reason }),
     })
     if (res.ok) {
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
+      setBookings(prev => prev.map(b =>
+        b.id === id ? { ...b, status, cancelReason: reason ?? null } : b
+      ))
     }
     setUpdating(null)
+  }
+
+  function openCancelDialog(id: string) {
+    setCancelReason('')
+    setCancelDialog({ id })
+  }
+
+  async function confirmCancel() {
+    if (!cancelDialog) return
+    await updateStatus(cancelDialog.id, 'cancelled', cancelReason.trim() || 'Скасовано тренером')
+    setCancelDialog(null)
   }
 
   const upcoming = bookings.filter(b => ['pending', 'confirmed'].includes(b.status))
@@ -68,6 +83,38 @@ export default function CoachBookings() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
+      {/* Cancel dialog */}
+      {cancelDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a3a5c] border border-white/20 rounded-2xl p-6 w-full max-w-sm text-white">
+            <h2 className="font-bold text-lg font-heading mb-1">Скасувати заняття?</h2>
+            <p className="text-sm text-blue-200 mb-4">Учень отримає повідомлення на email.</p>
+            <label className="block text-sm text-blue-100 mb-1.5">Причина (необов'язково)</label>
+            <textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              rows={3}
+              placeholder="Наприклад: захворів, зміна планів..."
+              className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-200/50 focus:outline-none focus:border-white/40 text-sm resize-none mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCancelDialog(null)}
+                className="flex-1 py-2.5 border border-white/20 rounded-xl text-sm text-blue-200 hover:bg-white/10 transition-colors"
+              >
+                Назад
+              </button>
+              <button
+                onClick={confirmCancel}
+                disabled={!!updating}
+                className="flex-1 py-2.5 bg-red-500/80 hover:bg-red-500 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Скасувати заняття
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 text-white mb-8">
@@ -108,7 +155,7 @@ export default function CoachBookings() {
                       updating={updating === b.id}
                       onConfirm={() => updateStatus(b.id, 'confirmed')}
                       onComplete={() => updateStatus(b.id, 'completed')}
-                      onCancel={() => updateStatus(b.id, 'cancelled', 'Скасовано тренером')}
+                      onCancel={() => openCancelDialog(b.id)}
                     />
                   ))}
                 </div>
@@ -146,12 +193,12 @@ function BookingCard({
 }) {
   return (
     <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white">
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
           <div className="font-semibold truncate">{b.studentName}</div>
           <div className="text-sm text-blue-200 truncate">{b.studentEmail}</div>
         </div>
-        <span className={`flex-shrink-0 text-xs px-2.5 py-1 border rounded-full ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
+        <span className={`flex-shrink-0 text-xs px-2 py-1 border rounded-full whitespace-nowrap ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
           {STATUS_LABEL[b.status] ?? b.status}
         </span>
       </div>

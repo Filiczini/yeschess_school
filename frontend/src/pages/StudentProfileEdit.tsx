@@ -134,7 +134,7 @@ export default function StudentProfileEdit() {
             </div>
 
             {/* Ratings */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-sm text-blue-200 mb-1.5">FIDE рейтинг</label>
                 <input

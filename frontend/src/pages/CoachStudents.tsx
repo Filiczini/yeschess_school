@@ -113,12 +113,12 @@ export default function CoachStudents() {
 
                     {/* Platforms */}
                     {(s.chesscomUsername || s.lichessUsername) && (
-                      <div className="flex items-center gap-3 mt-1.5">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                         {s.chesscomUsername && (
-                          <span className="text-xs text-emerald-300">chess.com: {s.chesscomUsername}</span>
+                          <span className="text-xs text-emerald-300 truncate">chess.com: {s.chesscomUsername}</span>
                         )}
                         {s.lichessUsername && (
-                          <span className="text-xs text-blue-300">lichess: {s.lichessUsername}</span>
+                          <span className="text-xs text-blue-300 truncate">lichess: {s.lichessUsername}</span>
                         )}
                       </div>
                     )}

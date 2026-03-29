@@ -14,7 +14,8 @@
       "WebSearch",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npm run:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(find C:/CODE/yeschess_school -name *.test.* -o -name *.spec.*)"
     ]
   }
 }

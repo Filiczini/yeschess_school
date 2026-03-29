@@ -116,7 +116,7 @@ export default function CoachSchedule() {
                 </div>
 
                 {slot.isActive && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div>
                       <label className="block text-xs text-blue-200 mb-1">Початок</label>
                       <input

@@ -1,10 +1,12 @@
 import 'dotenv/config'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { auth } from './auth.js'
 import { db } from './db/index.js'
 import { user } from './db/schema.js'
 import { eq } from 'drizzle-orm'
 
 async function seedAdmin() {
+  await migrate(db, { migrationsFolder: './drizzle' })
   const email = process.env.ADMIN_EMAIL
   const password = process.env.ADMIN_PASSWORD
   const name = process.env.ADMIN_NAME ?? 'Admin'

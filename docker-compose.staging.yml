@@ -59,6 +59,30 @@ services:
       - dokploy-network
       - default
 
+  seed:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["node", "dist/seed-admin.js"]
+    environment:
+      - DATABASE_URL=postgresql://yeschess:${DB_PASSWORD}@db:5432/yeschess
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=https://api-staging.yeschess.school
+      - FRONTEND_URL=https://staging.yeschess.school
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_NAME=${ADMIN_NAME:-Admin}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - default
+    profiles:
+      - seed
+
 volumes:
   pgdata-staging:
 

@@ -3,6 +3,15 @@ import { Resend } from 'resend'
 const FROM = process.env.EMAIL_FROM ?? 'YesChess <noreply@yeschess.school>'
 const SITE = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
+function esc(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY!)
 }
@@ -78,7 +87,7 @@ export async function sendWelcome(to: string, name: string) {
     to,
     subject: 'Ласкаво просимо до YesChess! ♟️',
     html: wrap(`
-      <h1>Привіт, ${name}! 👋</h1>
+      <h1>Привіт, ${esc(name)}! 👋</h1>
       <p>Раді вітати тебе в <strong>YesChess School</strong> — онлайн-школі шахів.</p>
       <p>Твій акаунт створено. Найближчим часом адміністратор призначить тобі тренера — ти отримаєш повідомлення на цей email.</p>
       <p>Поки що можеш заповнити свій профіль: вкажи рівень, рейтинг і нікнейми на chess.com / lichess.</p>
@@ -102,16 +111,16 @@ export async function sendCoachAssigned(
     subject: 'Тобі призначено тренера — YesChess',
     html: wrap(`
       <h1>Тренера призначено! 🎉</h1>
-      <p>Привіт, <strong>${studentName}</strong>!</p>
+      <p>Привіт, <strong>${esc(studentName)}</strong>!</p>
       <p>Адміністратор призначив тобі тренера. Тепер ти можеш записатись на перше заняття.</p>
       <div class="card">
         <div class="card-row">
           <span class="card-label">Тренер</span>
-          <span class="card-value">${coachName}</span>
+          <span class="card-value">${esc(coachName)}</span>
         </div>
         <div class="card-row">
           <span class="card-label">Email</span>
-          <span class="card-value">${coachEmail}</span>
+          <span class="card-value">${esc(coachEmail)}</span>
         </div>
       </div>
       <a href="${SITE}/student/booking" class="btn">Записатись на заняття</a>
@@ -134,12 +143,12 @@ export async function sendBookingConfirmed(
     subject: 'Заняття підтверджено — YesChess',
     html: wrap(`
       <h1>Заняття підтверджено ✅</h1>
-      <p>Привіт, <strong>${studentName}</strong>!</p>
+      <p>Привіт, <strong>${esc(studentName)}</strong>!</p>
       <p>Твій тренер підтвердив заняття. Чекаємо тебе!</p>
       <div class="card">
         <div class="card-row">
           <span class="card-label">Тренер</span>
-          <span class="card-value">${coachName}</span>
+          <span class="card-value">${esc(coachName)}</span>
         </div>
         <div class="card-row">
           <span class="card-label">Дата та час</span>
@@ -174,12 +183,12 @@ export async function sendBookingCancelled(
     subject: 'Заняття скасовано — YesChess',
     html: wrap(`
       <h1>Заняття скасовано</h1>
-      <p>Привіт, <strong>${studentName}</strong>!</p>
+      <p>Привіт, <strong>${esc(studentName)}</strong>!</p>
       <p>На жаль, заняття було скасовано.</p>
       <div class="card">
         <div class="card-row">
           <span class="card-label">Тренер</span>
-          <span class="card-value">${coachName}</span>
+          <span class="card-value">${esc(coachName)}</span>
         </div>
         <div class="card-row">
           <span class="card-label">Дата та час</span>
@@ -188,7 +197,7 @@ export async function sendBookingCancelled(
         ${cancelReason ? `
         <div class="card-row">
           <span class="card-label">Причина</span>
-          <span class="card-value">${cancelReason}</span>
+          <span class="card-value">${esc(cancelReason)}</span>
         </div>` : ''}
         <div class="card-row">
           <span class="card-label">Статус</span>

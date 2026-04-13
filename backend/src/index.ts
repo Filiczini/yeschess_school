@@ -1,6 +1,8 @@
 import 'dotenv/config'
+import { z } from 'zod'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
@@ -15,6 +17,95 @@ import { sendWelcome, sendCoachAssigned, sendBookingConfirmed, sendBookingCancel
 const SELF_ASSIGNABLE_ROLES = ['student', 'parent', 'coach'] as const
 type SelfAssignableRole = typeof SELF_ASSIGNABLE_ROLES[number]
 
+// ── Validation ────────────────────────────────────────────────────────────────
+
+function validate<S extends z.ZodTypeAny>(
+  schema: S,
+  data: unknown,
+): { success: true; data: z.infer<S> } | { success: false; error: string } {
+  const result = schema.safeParse(data)
+  if (!result.success) {
+    return { success: false, error: result.error.issues.map((i) => i.message).join('; ') }
+  }
+  return { success: true, data: result.data }
+}
+
+const roleBodySchema = z.object({
+  role: z.enum(['student', 'parent', 'coach']),
+  phone: z.string().max(50).optional(),
+  contactMethod: z.string().max(100).optional(),
+  instagram: z.string().max(100).optional(),
+})
+
+const coachProfileBodySchema = z.object({
+  bio: z.string().max(2000).optional(),
+  title: z.enum(['CM', 'NM', 'FM', 'IM', 'GM', 'WFM', 'WIM', 'WGM']).nullish(),
+  fideRating: z.number().int().min(0).max(3500).optional(),
+  hourlyRate: z.string().regex(/^\d+(\.\d{1,2})?$/, 'hourlyRate must be a decimal like "500.00"'),
+  languages: z.array(z.string().max(50)).max(20).optional(),
+  specializations: z.array(z.string().max(100)).max(20).optional(),
+})
+
+const scheduleBodySchema = z.array(z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  startTime: z.string().regex(/^[0-2]\d:[0-5]\d$/),
+  endTime: z.string().regex(/^[0-2]\d:[0-5]\d$/),
+  slotDuration: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]),
+  isActive: z.boolean(),
+})).max(7)
+
+const bookingCreateBodySchema = z.object({
+  coachId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^[0-2]\d:[0-5]\d$/),
+})
+
+const bookingStatusBodySchema = z.object({
+  status: z.enum(['confirmed', 'completed', 'cancelled']),
+  cancelReason: z.string().max(500).optional(),
+})
+
+const studentProfileBodySchema = z.object({
+  level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+  fideRating: z.number().int().min(0).max(3000).optional(),
+  clubRating: z.number().int().min(0).max(3000).optional(),
+  chesscomUsername: z.string().max(50).optional(),
+  lichessUsername: z.string().max(50).optional(),
+  bio: z.string().max(1000).optional(),
+  birthdate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+const parentProfileBodySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  phone: z.string().max(50).optional(),
+  contactMethod: z.string().max(100).optional(),
+  instagram: z.string().max(100).optional(),
+})
+
+const linkChildBodySchema = z.object({
+  code: z.string().min(1).max(20).transform(s => s.toUpperCase().trim()),
+})
+
+const createChildBodySchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email().transform(s => s.toLowerCase().trim()),
+  password: z.string().min(8).max(128),
+  level: z.enum(['beginner', 'intermediate', 'advanced']),
+  birthdate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+const leadBodySchema = z.object({
+  name: z.string().min(1).max(200),
+  contact: z.string().min(1).max(200),
+  comment: z.string().max(1000).optional(),
+})
+
+const adminEnrollmentBodySchema = z.object({
+  studentId: z.string().min(1),
+  coachId: z.string().uuid(),
+  notes: z.string().max(500).optional(),
+})
+
 const app = Fastify({
   logger: true,
   ajv: {
@@ -27,6 +118,17 @@ const app = Fastify({
 await app.register(cors, {
   origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
   credentials: true,
+})
+
+await app.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+  errorResponseBuilder: () => ({
+    error: 'Забагато запитів. Спробуйте через хвилину.',
+  }),
+  keyGenerator: (req: { ip: string }) => req.ip,
+  skipOnError: false,
+  allowList: ['/api/health'],
 })
 
 await app.register(swagger, {
@@ -176,15 +278,9 @@ app.patch('/api/users/me/role', {
   const session = await getSession(req as Parameters<typeof getSession>[0])
   if (!session) return reply.status(401).send({ error: 'Unauthorized' })
 
-  const { role, phone, contactMethod, instagram } = req.body as {
-    role: string
-    phone?: string
-    contactMethod?: string
-    instagram?: string
-  }
-  if (!SELF_ASSIGNABLE_ROLES.includes(role as SelfAssignableRole)) {
-    return reply.status(400).send({ error: 'Invalid role' })
-  }
+  const parsed = validate(roleBodySchema, req.body)
+  if (!parsed.success) return reply.status(400).send({ error: parsed.error })
+  const { role, phone, contactMethod, instagram } = parsed.data
 
   const status = role === 'coach' ? 'pending' : 'active'
   await db.update(user).set({
@@ -324,19 +420,9 @@ app.put('/api/coach/profile', {
     return reply.status(403).send({ error: 'Only coaches can update coach profile' })
   }
 
-  const { bio, title, fideRating, hourlyRate, languages, specializations } =
-    req.body as {
-      bio?: string
-      title?: string
-      fideRating?: number
-      hourlyRate: string
-      languages?: string[]
-      specializations?: string[]
-    }
-
-  if (!hourlyRate) {
-    return reply.status(400).send({ error: 'hourlyRate is required' })
-  }
+  const parsed = validate(coachProfileBodySchema, req.body)
+  if (!parsed.success) return reply.status(400).send({ error: parsed.error })
+  const { bio, title, fideRating, hourlyRate, languages, specializations } = parsed.data
 
   const values = {
     userId: session.user.id,
@@ -428,7 +514,7 @@ app.get('/api/coach/students', {
     .from(enrollment)
     .innerJoin(studentUser, eq(enrollment.studentId, studentUser.id))
     .leftJoin(studentProfile, eq(enrollment.studentId, studentProfile.userId))
-    .where(eq(enrollment.coachId, profile.id))
+    .where(and(eq(enrollment.coachId, profile.id), isNull(studentUser.deletedAt)))
     .orderBy(asc(studentUser.name))
 
   return reply.send(rows)
@@ -526,17 +612,9 @@ app.put('/api/coach/schedule', {
 
   if (!profile) return reply.status(403).send({ error: 'Coach profile not found' })
 
-  const slots = req.body as Array<{
-    dayOfWeek: number
-    startTime: string
-    endTime: string
-    slotDuration: number
-    isActive: boolean
-  }>
-
-  if (!Array.isArray(slots)) {
-    return reply.status(400).send({ error: 'Expected array of schedule slots' })
-  }
+  const parsedSlots = validate(scheduleBodySchema, req.body)
+  if (!parsedSlots.success) return reply.status(400).send({ error: parsedSlots.error })
+  const slots = parsedSlots.data
 
   for (const slot of slots) {
     await db
@@ -691,43 +769,45 @@ app.post('/api/bookings', {
   const session = await getSession(req as Parameters<typeof getSession>[0])
   if (!session) return reply.status(401).send({ error: 'Unauthorized' })
 
-  const { coachId, date, time } = req.body as {
-    coachId: string
-    date: string
-    time: string
-  }
-
-  if (!coachId || !date || !time) {
-    return reply.status(400).send({ error: 'coachId, date and time are required' })
-  }
+  const parsedBooking = validate(bookingCreateBodySchema, req.body)
+  if (!parsedBooking.success) return reply.status(400).send({ error: parsedBooking.error })
+  const { coachId, date, time } = parsedBooking.data
 
   const scheduledAt = new Date(`${date}T${time}:00.000Z`)
 
   const slotEnd = new Date(scheduledAt.getTime() + 60 * 60 * 1000)
-  const [conflict] = await db
-    .select({ id: booking.id })
-    .from(booking)
-    .where(and(
-      eq(booking.coachId, coachId),
-      gte(booking.scheduledAt, scheduledAt),
-      lt(booking.scheduledAt, slotEnd),
-      ne(booking.status, 'cancelled'),
-      ne(booking.status, 'refunded'),
-    ))
 
-  if (conflict) {
+  const created = await db.transaction(async (tx) => {
+    const [conflict] = await tx
+      .select({ id: booking.id })
+      .from(booking)
+      .where(and(
+        eq(booking.coachId, coachId),
+        gte(booking.scheduledAt, scheduledAt),
+        lt(booking.scheduledAt, slotEnd),
+        ne(booking.status, 'cancelled'),
+        ne(booking.status, 'refunded'),
+      ))
+      .for('update')
+
+    if (conflict) return null
+
+    const [row] = await tx
+      .insert(booking)
+      .values({
+        studentId: session.user.id,
+        coachId,
+        scheduledAt,
+        price: '0',
+      })
+      .returning({ id: booking.id, status: booking.status, scheduledAt: booking.scheduledAt })
+
+    return row
+  })
+
+  if (!created) {
     return reply.status(409).send({ error: 'Slot already booked' })
   }
-
-  const [created] = await db
-    .insert(booking)
-    .values({
-      studentId: session.user.id,
-      coachId,
-      scheduledAt,
-      price: '0',
-    })
-    .returning({ id: booking.id, status: booking.status, scheduledAt: booking.scheduledAt })
 
   return reply.status(201).send(created)
 })
@@ -841,15 +921,9 @@ app.patch('/api/bookings/:id/status', {
   if (!profile) return reply.status(403).send({ error: 'Coach profile not found' })
 
   const { id } = req.params as { id: string }
-  const { status, cancelReason } = req.body as {
-    status: 'confirmed' | 'completed' | 'cancelled'
-    cancelReason?: string
-  }
-
-  const allowed = ['confirmed', 'completed', 'cancelled'] as const
-  if (!allowed.includes(status)) {
-    return reply.status(400).send({ error: 'Invalid status' })
-  }
+  const parsedStatus = validate(bookingStatusBodySchema, req.body)
+  if (!parsedStatus.success) return reply.status(400).send({ error: parsedStatus.error })
+  const { status, cancelReason } = parsedStatus.data
 
   const [b] = await db
     .select({ id: booking.id })
@@ -967,6 +1041,7 @@ app.put('/api/student/profile', {
     response: {
       200: { description: 'Профіль оновлено', type: 'object' },
       201: { description: 'Профіль створено', type: 'object' },
+      400: { $ref: 'Error#' },
       401: { $ref: 'Error#' },
     },
   },
@@ -974,16 +1049,9 @@ app.put('/api/student/profile', {
   const session = await getSession(req as Parameters<typeof getSession>[0])
   if (!session) return reply.status(401).send({ error: 'Unauthorized' })
 
-  const { level, fideRating, clubRating, chesscomUsername, lichessUsername, bio, birthdate } =
-    req.body as {
-      level?: string
-      fideRating?: number
-      clubRating?: number
-      chesscomUsername?: string
-      lichessUsername?: string
-      bio?: string
-      birthdate?: string
-    }
+  const parsedStudentProfile = validate(studentProfileBodySchema, req.body)
+  if (!parsedStudentProfile.success) return reply.status(400).send({ error: parsedStudentProfile.error })
+  const { level, fideRating, clubRating, chesscomUsername, lichessUsername, bio, birthdate } = parsedStudentProfile.data
 
   const values = {
     userId: session.user.id,
@@ -1063,7 +1131,7 @@ app.get('/api/student/coach', {
     .from(enrollment)
     .innerJoin(coachProfile, eq(enrollment.coachId, coachProfile.id))
     .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id))
-    .where(eq(enrollment.studentId, session.user.id))
+    .where(and(eq(enrollment.studentId, session.user.id), isNull(coachUser.deletedAt)))
 
   return reply.send(row ?? null)
 })
@@ -1412,8 +1480,8 @@ app.get('/api/admin/stats', {
     return reply.status(403).send({ error: 'Forbidden' })
   }
 
-  const [totalUsers] = await db.select({ count: sql<number>`count(*)::int` }).from(user)
-  const [pendingCount] = await db.select({ count: sql<number>`count(*)::int` }).from(user).where(eq(user.status, 'pending'))
+  const [totalUsers] = await db.select({ count: sql<number>`count(*)::int` }).from(user).where(isNull(user.deletedAt))
+  const [pendingCount] = await db.select({ count: sql<number>`count(*)::int` }).from(user).where(and(eq(user.status, 'pending'), isNull(user.deletedAt)))
   const [enrollmentsCount] = await db.select({ count: sql<number>`count(*)::int` }).from(enrollment)
 
   return reply.send({
@@ -1604,6 +1672,7 @@ app.get('/api/admin/coaches', {
     })
     .from(coachProfile)
     .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id))
+    .where(isNull(coachUser.deletedAt))
     .orderBy(asc(coachUser.name))
 
   return reply.send(rows)
@@ -1663,6 +1732,7 @@ app.get('/api/admin/enrollments', {
     .innerJoin(studentUser, eq(enrollment.studentId, studentUser.id))
     .innerJoin(coachProfile, eq(enrollment.coachId, coachProfile.id))
     .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id))
+    .where(and(isNull(studentUser.deletedAt), isNull(coachUser.deletedAt)))
     .orderBy(asc(enrollment.createdAt))
 
   return reply.send(rows)
@@ -1703,11 +1773,9 @@ app.post('/api/admin/enrollments', {
     return reply.status(403).send({ error: 'Forbidden' })
   }
 
-  const { studentId, coachId, notes } = req.body as { studentId: string; coachId: string; notes?: string }
-
-  if (!studentId || !coachId) {
-    return reply.status(400).send({ error: 'studentId and coachId are required' })
-  }
+  const parsedEnrollment = validate(adminEnrollmentBodySchema, req.body)
+  if (!parsedEnrollment.success) return reply.status(400).send({ error: parsedEnrollment.error })
+  const { studentId, coachId, notes } = parsedEnrollment.data
 
   const [existing] = await db
     .select({ id: enrollment.id })
@@ -1788,6 +1856,7 @@ app.patch('/api/parent/profile', {
     },
     response: {
       200: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      400: { $ref: 'Error#' },
       401: { $ref: 'Error#' },
       403: { $ref: 'Error#' },
     },
@@ -1799,9 +1868,9 @@ app.patch('/api/parent/profile', {
   const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
   if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Forbidden' })
 
-  const { name, phone, contactMethod, instagram } = req.body as {
-    name?: string; phone?: string; contactMethod?: string; instagram?: string
-  }
+  const parsedParentProfile = validate(parentProfileBodySchema, req.body)
+  if (!parsedParentProfile.success) return reply.status(400).send({ error: parsedParentProfile.error })
+  const { name, phone, contactMethod, instagram } = parsedParentProfile.data
 
   await db.update(user).set({
     ...(name !== undefined && { name }),
@@ -1888,13 +1957,15 @@ app.post('/api/parent/link-child', {
   const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
   if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Тільки для батьків' })
 
-  const { code } = req.body as { code: string }
+  const parsedCode = validate(linkChildBodySchema, req.body)
+  if (!parsedCode.success) return reply.status(400).send({ error: parsedCode.error })
+  const { code } = parsedCode.data
 
   const [row] = await db
     .select({ studentId: linkCode.studentId, expiresAt: linkCode.expiresAt, name: user.name })
     .from(linkCode)
     .innerJoin(user, eq(linkCode.studentId, user.id))
-    .where(eq(linkCode.code, code.toUpperCase().trim()))
+    .where(eq(linkCode.code, code))
 
   if (!row) return reply.status(404).send({ error: 'Код не знайдено' })
   if (row.expiresAt < new Date()) return reply.status(400).send({ error: 'Код прострочений' })
@@ -1907,7 +1978,7 @@ app.post('/api/parent/link-child', {
   if (existing) return reply.status(409).send({ error: 'Дитину вже прив\'язано до вашого акаунту' })
 
   await db.insert(parentChild).values({ parentId: session.user.id, childId: row.studentId })
-  await db.delete(linkCode).where(eq(linkCode.code, code.toUpperCase().trim()))
+  await db.delete(linkCode).where(eq(linkCode.code, code))
 
   return reply.send({ childId: row.studentId, childName: row.name })
 })
@@ -1969,7 +2040,7 @@ app.get('/api/parent/children', {
     .leftJoin(enrollment, eq(enrollment.studentId, childUser.id))
     .leftJoin(coachProfile, eq(coachProfile.id, enrollment.coachId))
     .leftJoin(coachUser, eq(coachProfile.userId, coachUser.id))
-    .where(eq(parentChild.parentId, session.user.id))
+    .where(and(eq(parentChild.parentId, session.user.id), isNull(childUser.deletedAt)))
 
   if (rows.length === 0) return reply.send([])
 
@@ -2033,13 +2104,9 @@ app.post('/api/parent/children', {
   const [me] = await db.select({ role: user.role }).from(user).where(eq(user.id, session.user.id))
   if (!me || me.role !== 'parent') return reply.status(403).send({ error: 'Forbidden' })
 
-  const { name, email, password, level, birthdate } = req.body as {
-    name: string
-    email: string
-    password: string
-    level: string
-    birthdate?: string
-  }
+  const parsedChild = validate(createChildBodySchema, req.body)
+  if (!parsedChild.success) return reply.status(400).send({ error: parsedChild.error })
+  const { name, email, password, level, birthdate } = parsedChild.data
 
   // Check email uniqueness
   const [existing] = await db.select({ id: user.id }).from(user).where(eq(user.email, email))
@@ -2098,10 +2165,9 @@ app.post('/api/leads', {
     },
   },
 }, async (req, reply) => {
-  const { name, contact, comment } = req.body as { name: string; contact: string; comment?: string }
-  if (!name || !contact) {
-    return reply.status(400).send({ error: 'name and contact are required' })
-  }
+  const parsedLead = validate(leadBodySchema, req.body)
+  if (!parsedLead.success) return reply.status(400).send({ error: parsedLead.error })
+  const { name, contact, comment } = parsedLead.data
   const [created] = await db.insert(lead).values({ name, contact, comment }).returning({ id: lead.id })
   return reply.status(201).send(created)
 })

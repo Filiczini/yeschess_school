@@ -75,9 +75,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      backend:
+        condition: service_healthy
     restart: "no"
     networks:
       - default
+      - dokploy-network
     profiles:
       - seed
 

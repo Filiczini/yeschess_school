@@ -42,7 +42,8 @@ function verifyLiqPaySignature(_data: string, _signature: string, _privateKey: s
 export default async function webhookRoutes(app: FastifyInstance) {
   // Stripe webhook
   app.post('/api/webhooks/stripe', {
-    config: { rawBody: true },
+    // NOTE: for real Stripe signature verification, register @fastify/raw-body
+    // and read req.rawBody instead of JSON.stringify(req.body)
     schema: {
       tags: ['Webhooks'],
       summary: 'Stripe webhook (placeholder)',

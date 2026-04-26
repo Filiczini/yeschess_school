@@ -16,6 +16,8 @@ vi.mock('../middleware/auth.js', () => ({
   requireRole: vi.fn((...roles) => (req, reply, done) => done()),
 }))
 
+import { requireAuth } from '../middleware/auth.js'
+
 describe('File Routes', () => {
   describe('POST /api/files/presigned-upload', () => {
     it('returns presigned upload URL for authenticated user', async () => {
@@ -131,6 +133,35 @@ describe('File Routes', () => {
       expect(res.statusCode).toBe(403)
       const body = JSON.parse(res.payload)
       expect(body.error).toContain('Access denied')
+    })
+
+    it('allows admin to download any file', async () => {
+      const originalImpl = vi.mocked(requireAuth).getMockImplementation()
+      vi.mocked(requireAuth).mockImplementation((req, reply, done) => {
+        ;(req as any).session = {
+          user: {
+            id: 'admin-1',
+            email: 'admin@example.com',
+            name: 'Admin',
+            role: 'super_admin',
+          },
+        }
+        done()
+      })
+
+      const app = await buildTestApp()
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/files/presigned-download/other-user-photo.jpg',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body.downloadUrl).toContain('placeholder-presigned-url')
+      expect(body.expiresAt).toBeDefined()
+
+      vi.mocked(requireAuth).mockImplementation(originalImpl!)
     })
   })
 })

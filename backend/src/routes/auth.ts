@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm'
 
 export default async function authRoutes(app: FastifyInstance) {
   app.all('/api/auth/*', {
-    config: { rateLimit: { max: process.env.NODE_ENV === 'production' ? 50 : 100, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: process.env.NODE_ENV === 'production' ? 200 : 1000, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     const url = `http://${req.headers.host}${req.url}`
 

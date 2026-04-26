@@ -41,8 +41,10 @@ services:
       - "traefik.http.routers.yeschess-backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.yeschess-backend.loadbalancer.server.port=3000"
     networks:
-      - dokploy-network
-      - default
+      dokploy-network:
+        aliases:
+          - yeschess-backend
+      default:
 
   frontend:
     build:

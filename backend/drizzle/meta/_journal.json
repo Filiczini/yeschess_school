@@ -43,6 +43,41 @@
       "when": 1774599094093,
       "tag": "0005_smiling_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774701926779,
+      "tag": "0006_previous_medusa",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774712071252,
+      "tag": "0007_flippant_marvel_zombies",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774714787732,
+      "tag": "0008_omniscient_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777186732054,
+      "tag": "0009_narrow_king_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777191846247,
+      "tag": "0010_thin_wallow",
+      "breakpoints": true
     }
   ]
 }

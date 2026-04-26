@@ -1,0 +1,162 @@
+<html lang="uk"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YESCHESS — Дашборд</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Inter+Tight:wght@400;500&amp;family=Montserrat:wght@400;500&amp;display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+</head>
+<body class="bg-[#F8F9FC] text-gray-900 font-['Inter',sans-serif] text-base antialiased selection:bg-[#5440C5] selection:text-white">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- СУЧАСНА БОКОВА ПАНЕЛЬ -->
+        <aside class="w-[260px] bg-white border-r border-gray-200 h-full flex flex-col shrink-0 z-20">
+            
+            <!-- Logo Header -->
+            <div class="h-16 flex items-center px-6 border-b border-gray-100 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 bg-[#5440C5] rounded flex items-center justify-center shadow-sm">
+                        <iconify-icon icon="solar:crown-linear" width="16" height="16" class="text-white"></iconify-icon>
+                    </div>
+                    <span class="font-['Montserrat',sans-serif] text-lg font-medium tracking-tight text-gray-900">YESCHESS</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+                <div class="px-3 pb-2 pt-1 text-xs font-['Inter_Tight',sans-serif] font-medium text-gray-400 uppercase tracking-widest">
+                    Меню
+                </div>
+
+                <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-md bg-[#F0EEFA] text-sm font-medium text-[#5440C5] group transition-colors border border-[#5440C5]/20">
+                    <iconify-icon icon="solar:users-group-rounded-linear" width="20" height="20" class="text-[#5440C5]"></iconify-icon>
+                    <span>Всі користувачі</span>
+                </a>
+                
+                <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:bg-[#F0EEFA]/60 hover:text-[#5440C5] transition-colors group border border-transparent">
+                    <iconify-icon icon="solar:user-plus-linear" width="20" height="20" class="text-gray-400 group-hover:text-[#5440C5] transition-colors"></iconify-icon>
+                    <span>Призначення учнів</span>
+                </a>
+                
+                <a href="#" class="flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:bg-[#F0EEFA]/60 hover:text-[#5440C5] transition-colors group border border-transparent">
+                    <div class="flex items-center gap-3">
+                        <iconify-icon icon="solar:hourglass-linear" width="20" height="20" class="text-gray-400 group-hover:text-[#5440C5] transition-colors"></iconify-icon>
+                        <span>Заявки на розгляді</span>
+                    </div>
+                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-[#F0EEFA] text-[#5440C5] text-[11px] font-medium">
+                        18
+                    </span>
+                </a>
+            </nav>
+
+            <!-- User Profile section -->
+            <div class="p-4 border-t border-gray-100 shrink-0">
+                <div class="flex items-center justify-between w-full p-2 -m-2 rounded-md hover:bg-[#F0EEFA]/50 transition-colors cursor-pointer group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#5440C5] to-[#36268B] shadow-sm text-white flex items-center justify-center text-xs font-medium font-['Montserrat',sans-serif]">
+                            СМ
+                        </div>
+                        <div class="flex flex-col text-left">
+                            <span class="text-sm font-medium text-gray-900 leading-tight">Сашка молодець</span>
+                            <span class="text-xs text-gray-500 font-['Inter_Tight',sans-serif]">Супер Адмін</span>
+                        </div>
+                    </div>
+                    <iconify-icon icon="solar:logout-2-linear" width="18" height="18" class="text-gray-400 group-hover:text-[#5440C5] transition-colors"></iconify-icon>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 overflow-y-auto relative bg-[#F8F9FC]">
+            
+            <!-- Topbar -->
+            <header class="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 px-10 flex items-center justify-between sticky top-0 z-10">
+                <div class="flex items-center gap-4">
+                    <h1 class="font-['Montserrat',sans-serif] text-xl font-medium tracking-tight text-gray-900">Огляд платформи</h1>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium font-['Inter_Tight',sans-serif] text-green-700 bg-green-50 border border-green-200/60">
+                        <iconify-icon icon="solar:pulse-linear" width="14" height="14" class="mr-1.5"></iconify-icon>
+                        Система онлайн
+                    </span>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <button class="relative text-gray-400 hover:text-[#5440C5] transition-colors p-1.5 rounded-md hover:bg-[#F0EEFA]/60">
+                        <iconify-icon icon="solar:bell-linear" width="22" height="22"></iconify-icon>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="p-10 max-w-6xl mx-auto">
+                
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <div class="bg-white border border-gray-200/80 p-6 rounded-xl shadow-sm hover:border-[#5440C5]/30 transition-colors flex flex-col gap-4 cursor-pointer group">
+                        <div class="flex justify-between items-start">
+                            <div class="w-12 h-12 rounded-lg bg-[#F0EEFA] text-[#5440C5] flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                                <iconify-icon icon="solar:users-group-two-rounded-linear" width="24" height="24"></iconify-icon>
+                            </div>
+                            <span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-md flex items-center gap-1">
+                                <iconify-icon icon="solar:chart-line-up-linear" width="12" height="12"></iconify-icon> +12%
+                            </span>
+                        </div>
+                        <div>
+                            <div class="text-sm font-['Inter_Tight',sans-serif] text-gray-500 mb-1">Загалом користувачів</div>
+                            <div class="font-['Montserrat',sans-serif] text-3xl font-medium tracking-tight text-gray-900">2,480</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-gray-200/80 p-6 rounded-xl shadow-sm hover:border-[#5440C5]/30 transition-colors flex flex-col gap-4 cursor-pointer group">
+                        <div class="flex justify-between items-start">
+                            <div class="w-12 h-12 rounded-lg bg-[#F0EEFA] text-[#5440C5] flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                                <iconify-icon icon="solar:diploma-linear" width="24" height="24"></iconify-icon>
+                            </div>
+                            <span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-md flex items-center gap-1">
+                                <iconify-icon icon="solar:chart-line-up-linear" width="12" height="12"></iconify-icon> +4 нових
+                            </span>
+                        </div>
+                        <div>
+                            <div class="text-sm font-['Inter_Tight',sans-serif] text-gray-500 mb-1">Активні групи</div>
+                            <div class="font-['Montserrat',sans-serif] text-3xl font-medium tracking-tight text-gray-900">64</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-gray-200/80 p-6 rounded-xl shadow-sm hover:border-amber-400 transition-colors flex flex-col gap-4 cursor-pointer group relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-24 h-24 bg-amber-50/50 rounded-bl-full -z-10 transition-transform group-hover:scale-105"></div>
+                        <div class="flex justify-between items-start z-10">
+                            <div class="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                                <iconify-icon icon="solar:inbox-linear" width="24" height="24"></iconify-icon>
+                            </div>
+                            <span class="text-xs font-medium text-amber-700 bg-amber-100/50 px-2 py-1 rounded-md border border-amber-200/50">
+                                Потребує уваги
+                            </span>
+                        </div>
+                        <div class="z-10">
+                            <div class="text-sm font-['Inter_Tight',sans-serif] text-gray-500 mb-1">Заявки на розгляді</div>
+                            <div class="font-['Montserrat',sans-serif] text-3xl font-medium tracking-tight text-gray-900">18</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State / Main Area -->
+                <div class="bg-white border border-gray-200/80 rounded-2xl shadow-sm min-h-[400px] flex flex-col items-center justify-center p-12 text-center relative overflow-hidden">
+                    
+                    <div class="w-16 h-16 bg-[#F0EEFA]/50 border border-[#5440C5]/10 rounded-xl flex items-center justify-center mb-6 relative z-10">
+                        <iconify-icon icon="solar:cursor-linear" width="32" height="32" class="text-[#5440C5]/60"></iconify-icon>
+                    </div>
+                    <h3 class="font-['Montserrat',sans-serif] text-xl font-medium tracking-tight text-gray-900 mb-2 relative z-10">Оберіть розділ меню</h3>
+                    <p class="text-sm text-gray-500 max-w-md mx-auto relative z-10">
+                        Використовуйте бокову панель ліворуч для навігації по системі. Ви можете керувати користувачами, призначати учнів у групи або переглядати нові заявки.
+                    </p>
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+
+</body></html>

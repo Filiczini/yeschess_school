@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { useSession, signOut } from '../lib/auth-client'
+import { useSession } from '../lib/auth-client'
+import SignOutButton from '../components/SignOutButton'
+import MobileHeader from '../components/MobileHeader'
 
 interface UserProfile {
   role: string
@@ -19,22 +21,22 @@ const SECTIONS = [
   {
     icon: 'solar:calendar-bold-duotone',
     label: 'Розклад',
-    desc: 'Доступні слоти',
+    desc: 'Мої доступні слоти',
     to: '/coach/schedule',
     color: 'from-blue-500/20 to-cyan-500/20',
   },
   {
-    icon: 'solar:book-2-bold-duotone',
-    label: 'Мої курси',
-    desc: 'Створити та керувати',
-    to: '/coach/courses',
+    icon: 'solar:notebook-bold-duotone',
+    label: 'Бронювання',
+    desc: 'Підтвердити заняття',
+    to: '/coach/bookings',
     color: 'from-emerald-500/20 to-teal-500/20',
   },
   {
     icon: 'solar:users-group-rounded-bold-duotone',
     label: 'Учні',
-    desc: 'Бронювання та сесії',
-    to: '/coach/bookings',
+    desc: 'Мій список учнів',
+    to: '/coach/students',
     color: 'from-orange-500/20 to-amber-500/20',
   },
 ]
@@ -42,17 +44,20 @@ const SECTIONS = [
 export default function CoachDashboard() {
   const { data: session } = useSession()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
     fetch('/api/users/me', { credentials: 'include' })
       .then(r => r.json())
       .then(setProfile)
+    fetch('/api/coach/bookings', { credentials: 'include' })
+      .then(r => r.json())
+      .then((data: { status: string }[]) => {
+        if (Array.isArray(data)) {
+          setPendingCount(data.filter(b => b.status === 'pending').length)
+        }
+      })
   }, [])
-
-  async function handleSignOut() {
-    await signOut()
-    window.location.href = '/'
-  }
 
   const isPending = profile?.status === 'pending'
 
@@ -61,19 +66,8 @@ export default function CoachDashboard() {
       {/* Header */}
       <div className="max-w-xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:logout-2-linear" width="16" height="16"></iconify-icon>
-            Вийти
-          </button>
+          <MobileHeader />
+          <SignOutButton variant="dark" />
         </div>
 
         {/* Welcome card */}
@@ -114,6 +108,20 @@ export default function CoachDashboard() {
               Ваш акаунт очікує підтвердження адміністратором. Ви отримаєте доступ до всіх функцій після верифікації.
             </span>
           </div>
+        )}
+
+        {/* Pending bookings alert */}
+        {pendingCount > 0 && (
+          <Link
+            to="/coach/bookings"
+            className="flex items-center gap-3 bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4 mb-4 text-sm text-amber-200 hover:bg-amber-400/15 transition-colors"
+          >
+            <iconify-icon icon="solar:bell-bing-bold-duotone" width="20" height="20" className="flex-shrink-0"></iconify-icon>
+            <span className="flex-1">
+              У вас <strong>{pendingCount}</strong> {pendingCount === 1 ? 'нове бронювання' : 'нових бронювань'} — потрібне підтвердження
+            </span>
+            <iconify-icon icon="solar:arrow-right-linear" width="16" height="16"></iconify-icon>
+          </Link>
         )}
 
         {/* Quick stats */}

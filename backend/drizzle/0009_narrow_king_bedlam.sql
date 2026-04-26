@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "bookings_coach_scheduled_active_uidx" ON "bookings" USING btree ("coach_id","scheduled_at") WHERE status NOT IN ('cancelled', 'refunded');

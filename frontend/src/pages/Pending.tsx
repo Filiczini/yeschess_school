@@ -1,30 +1,32 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { signOut } from '../lib/auth-client'
+import SignOutButton from '../components/SignOutButton'
 
 export default function Pending() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    let timeoutId: ReturnType<typeof setTimeout>
+    let delay = 3000
+
+    const poll = async () => {
       try {
         const res = await fetch('/api/users/me', { credentials: 'include' })
         const data = await res.json()
         if (data?.status === 'active') {
-          clearInterval(interval)
           navigate('/dashboard', { replace: true })
+          return
         }
       } catch {
         // ignore network errors, keep polling
       }
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [navigate])
+      delay = Math.min(30000, delay * 1.5)
+      timeoutId = setTimeout(poll, delay)
+    }
 
-  async function handleSignOut() {
-    await signOut()
-    window.location.href = '/'
-  }
+    timeoutId = setTimeout(poll, delay)
+    return () => clearTimeout(timeoutId)
+  }, [navigate])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center px-4">
@@ -62,12 +64,7 @@ export default function Pending() {
             </div>
           </div>
 
-          <button
-            onClick={handleSignOut}
-            className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors"
-          >
-            Вийти
-          </button>
+          <SignOutButton variant="dark" />
         </div>
       </div>
     </div>

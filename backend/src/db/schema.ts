@@ -103,6 +103,13 @@ export const lead = pgTable('leads', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+export const processedWebhook = pgTable('processed_webhooks', {
+  eventId: text('event_id').primaryKey(),
+  provider: text('provider').notNull(), // stripe | liqpay
+  eventType: text('event_type'),
+  processedAt: timestamp('processed_at').notNull().defaultNow(),
+})
+
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
   expiresAt: timestamp('expires_at').notNull(),
@@ -194,6 +201,29 @@ export const coachSchedule = pgTable('coach_schedules', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => ({
   uniqueCoachDay: uniqueIndex('coach_schedules_coach_day_uidx').on(t.coachId, t.dayOfWeek),
+}))
+
+// =============================================================================
+// STUDENTS
+// =============================================================================
+
+export const studentProfile = pgTable('student_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  level: courseLevelEnum('level'),
+  fideRating: integer('fide_rating'),
+  clubRating: integer('club_rating'),
+  chesscomUsername: text('chesscom_username'),
+  lichessUsername: text('lichess_username'),
+  bio: text('bio'),
+  birthdate: timestamp('birthdate'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  levelIdx: index('student_profiles_level_idx').on(t.level),
 }))
 
 // =============================================================================
@@ -402,6 +432,10 @@ export const booking = pgTable('bookings', {
   coachIdx: index('bookings_coach_id_idx').on(t.coachId),
   statusIdx: index('bookings_status_idx').on(t.status),
   scheduledAtIdx: index('bookings_scheduled_at_idx').on(t.scheduledAt),
+  // Partial unique index — prevents double-booking (excludes cancelled/refunded)
+  uniqueActiveSlot: uniqueIndex('bookings_coach_scheduled_active_uidx')
+    .on(t.coachId, t.scheduledAt)
+    .where(sql`status NOT IN ('cancelled', 'refunded')`),
 }))
 
 export const review = pgTable('reviews', {
@@ -495,6 +529,40 @@ export const payout = pgTable('payouts', {
 }, (t) => ({
   coachIdx: index('payouts_coach_id_idx').on(t.coachId),
   statusIdx: index('payouts_status_idx').on(t.status),
+}))
+
+// =============================================================================
+// LINK CODES  (учень генерує → батько вводить → parent_child)
+// =============================================================================
+
+export const linkCode = pgTable('link_codes', {
+  code: text('code').primaryKey(),
+  studentId: text('student_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  studentIdx: index('link_codes_student_id_idx').on(t.studentId),
+  expiresAtIdx: index('link_codes_expires_at_idx').on(t.expiresAt),
+}))
+
+// =============================================================================
+// PARENTS
+// =============================================================================
+
+export const parentChild = pgTable('parent_children', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  parentId: text('parent_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  childId: text('child_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  uniqueParentChild: uniqueIndex('parent_children_parent_child_uidx').on(t.parentId, t.childId),
+  parentIdx: index('parent_children_parent_id_idx').on(t.parentId),
 }))
 
 // =============================================================================

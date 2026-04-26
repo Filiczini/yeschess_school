@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import CoachBookings from './CoachBookings'
@@ -174,5 +174,72 @@ describe('CoachBookings', () => {
     })
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+  })
+
+  it('cancels booking with custom reason', async () => {
+    const fetchMock = vi.fn(async (_url: string, options?: any) => {
+      if (options?.method === 'PATCH') {
+        return { ok: true, json: async () => ({}) }
+      }
+      return { ok: true, json: async () => [mockBookings[0]] }
+    })
+    globalThis.fetch = fetchMock
+
+    render(
+      <MemoryRouter>
+        <CoachBookings />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Скасувати')).toBeInTheDocument())
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Скасувати'))
+    })
+
+    await waitFor(() => expect(screen.getByText('Скасувати заняття?')).toBeInTheDocument())
+
+    const textarea = screen.getByPlaceholderText('Наприклад: захворів, зміна планів...')
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: 'Зміна планів' } })
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Скасувати заняття'))
+    })
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    const patchCall = fetchMock.mock.calls.find((c: any) => c[1]?.method === 'PATCH')
+    expect(patchCall).toBeDefined()
+    const body = JSON.parse(patchCall![1].body)
+    expect(body.cancelReason).toBe('Зміна планів')
+  })
+
+  it('completes a confirmed booking', async () => {
+    const fetchMock = vi.fn(async (_url: string, options?: any) => {
+      if (options?.method === 'PATCH') {
+        return { ok: true, json: async () => ({}) }
+      }
+      return { ok: true, json: async () => [mockBookings[1]] }
+    })
+    globalThis.fetch = fetchMock
+
+    render(
+      <MemoryRouter>
+        <CoachBookings />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Завершити')).toBeInTheDocument())
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Завершити'))
+    })
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    const patchCall = fetchMock.mock.calls.find((c: any) => c[1]?.method === 'PATCH')
+    expect(patchCall).toBeDefined()
+    const body = JSON.parse(patchCall![1].body)
+    expect(body.status).toBe('completed')
   })
 })

@@ -26,6 +26,7 @@ interface EnrollmentRow {
 
 export default function AdminEnrollments() {
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([])
+  const [enrollmentTotal, setEnrollmentTotal] = useState(0)
   const [students, setStudents] = useState<UserOption[]>([])
   const [coaches, setCoaches] = useState<CoachOption[]>([])
 
@@ -37,8 +38,8 @@ export default function AdminEnrollments() {
 
   async function load() {
     const [enrRes, studRes, coachRes] = await Promise.all([
-      fetch('/api/admin/enrollments', { credentials: 'include' }),
-      fetch('/api/admin/users?role=student', { credentials: 'include' }),
+      fetch('/api/admin/enrollments?limit=1000', { credentials: 'include' }),
+      fetch('/api/admin/users?role=student&limit=1000', { credentials: 'include' }),
       fetch('/api/admin/coaches', { credentials: 'include' }),
     ])
     const [enrData, studData, coachData] = await Promise.all([
@@ -46,8 +47,10 @@ export default function AdminEnrollments() {
       studRes.json(),
       coachRes.json(),
     ])
-    setEnrollments(Array.isArray(enrData) ? enrData : [])
-    setStudents(Array.isArray(studData) ? studData : [])
+    const enrList = Array.isArray(enrData) ? enrData : (enrData.data ?? [])
+    setEnrollments(enrList)
+    setEnrollmentTotal(enrData.meta?.total ?? enrList.length)
+    setStudents(Array.isArray(studData) ? studData : (studData.data ?? []))
     setCoaches(Array.isArray(coachData) ? coachData : [])
   }
 
@@ -182,7 +185,7 @@ export default function AdminEnrollments() {
             </div>
             <h2 className="font-heading font-medium text-gray-900">Активні записи</h2>
             <span className="ml-auto text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-md">
-              {enrollments.length}
+              {enrollmentTotal}
             </span>
           </div>
 

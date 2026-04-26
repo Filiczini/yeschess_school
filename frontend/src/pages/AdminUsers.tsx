@@ -3,9 +3,15 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { UserTableRow, type User } from '../components/admin/UserTableRow'
 import { UsersFilter } from '../components/admin/UsersFilter'
 
+const LIMIT = 50
+
+interface Meta { total: number; page: number; limit: number; pages: number }
+
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([])
+  const [meta, setMeta] = useState<Meta | null>(null)
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [activeRole, setActiveRole] = useState('')
   const [showDeleted, setShowDeleted] = useState(false)
   const [myRole, setMyRole] = useState<string | null>(null)
@@ -19,27 +25,42 @@ export default function AdminUsers() {
     fetch('/api/users/me', { credentials: 'include' }).then(r => r.json()).then(d => setMyRole(d.role)).catch(() => {})
   }, [])
 
-  async function load(role: string, deleted: boolean) {
+  async function load(role: string, deleted: boolean, p: number) {
     setLoading(true)
-    const params = deleted ? 'deleted=true' : role ? `role=${role}` : ''
-    const res = await fetch(params ? `/api/admin/users?${params}` : '/api/admin/users', { credentials: 'include' })
+    const params = new URLSearchParams({ page: String(p), limit: String(LIMIT) })
+    if (deleted) params.set('deleted', 'true')
+    else if (role) params.set('role', role)
+    const res = await fetch(`/api/admin/users?${params}`, { credentials: 'include' })
     if (res.ok) {
       const json = await res.json()
-      setUsers(Array.isArray(json) ? json : (json.data ?? []))
+      setUsers(json.data ?? [])
+      setMeta(json.meta ?? null)
     }
     setLoading(false)
   }
 
-  useEffect(() => { load('', false) }, [])
+  useEffect(() => { load('', false, 1) }, [])
 
-  function handleFilter(role: string) { setActiveRole(role); load(role, false) }
+  function handleFilter(role: string) {
+    setActiveRole(role)
+    setPage(1)
+    setSelectedIds(new Set())
+    load(role, false, 1)
+  }
 
   function handleToggleDeleted() {
     const next = !showDeleted
     setShowDeleted(next)
     setActiveRole('')
+    setPage(1)
     setSelectedIds(new Set())
-    load('', next)
+    load('', next, 1)
+  }
+
+  function handlePageChange(newPage: number) {
+    setPage(newPage)
+    setSelectedIds(new Set())
+    load(activeRole, showDeleted, newPage)
   }
 
   async function handleConfirmDelete() {
@@ -52,14 +73,23 @@ export default function AdminUsers() {
 
   async function handleRestore(u: User) {
     const res = await fetch(`/api/admin/users/${u.id}/restore`, { method: 'PATCH', credentials: 'include' })
-    if (res.ok) { setUsers(prev => prev.filter(p => p.id !== u.id)); setSelectedIds(prev => { const next = new Set(prev); next.delete(u.id); return next }) }
+    if (res.ok) {
+      setUsers(prev => prev.filter(p => p.id !== u.id))
+      setMeta(prev => prev ? { ...prev, total: prev.total - 1, pages: Math.ceil((prev.total - 1) / LIMIT) } : prev)
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(u.id); return next })
+    }
   }
 
   async function handlePermanentDelete() {
     if (!selectedIds.size) return
     setPermanentDeleting(true)
     const res = await fetch('/api/admin/users/permanent', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ ids: [...selectedIds] }) })
-    if (res.ok) { setUsers(prev => prev.filter(u => !selectedIds.has(u.id))); setSelectedIds(new Set()); setConfirmPermanent(false) }
+    if (res.ok) {
+      setUsers(prev => prev.filter(u => !selectedIds.has(u.id)))
+      setMeta(prev => prev ? { ...prev, total: prev.total - selectedIds.size, pages: Math.ceil((prev.total - selectedIds.size) / LIMIT) } : prev)
+      setSelectedIds(new Set())
+      setConfirmPermanent(false)
+    }
     setPermanentDeleting(false)
   }
 
@@ -91,7 +121,7 @@ export default function AdminUsers() {
                 Видалити остаточно ({selectedIds.size})
               </button>
             )}
-            {!loading && <span className="text-xs text-gray-400">{users.length} {users.length === 1 ? 'запис' : 'записів'}</span>}
+            {!loading && meta && <span className="text-xs text-gray-400">{meta.total} {meta.total === 1 ? 'запис' : 'записів'}</span>}
           </>
         }
       />
@@ -110,36 +140,62 @@ export default function AdminUsers() {
             <p className="text-gray-400 text-sm mt-1">Спробуйте змінити фільтр</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wider">
-                {showDeleted && (
-                  <th className="pl-6 py-3 w-10">
-                    <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected }} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-red-500 cursor-pointer accent-red-500" />
-                  </th>
-                )}
-                <th className="px-6 py-3 text-left font-medium">Користувач</th>
-                <th className="px-6 py-3 text-left font-medium">Роль</th>
-                <th className="px-6 py-3 text-left font-medium">Статус</th>
-                <th className="px-6 py-3 text-left font-medium">{showDeleted ? 'Видалено' : 'Дата реєстрації'}</th>
-                {isSuperAdmin && <th className="px-6 py-3" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {users.map(u => (
-                <UserTableRow
-                  key={u.id}
-                  user={u}
-                  showDeleted={showDeleted}
-                  isChecked={selectedIds.has(u.id)}
-                  onToggle={() => toggleSelect(u.id)}
-                  onDelete={isSuperAdmin && u.role !== 'super_admin' && !showDeleted ? () => setConfirmUser(u) : undefined}
-                  onRestore={showDeleted && isSuperAdmin ? () => handleRestore(u) : undefined}
-                  showActions={isSuperAdmin}
-                />
-              ))}
-            </tbody>
-          </table>
+          <>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wider">
+                  {showDeleted && (
+                    <th className="pl-6 py-3 w-10">
+                      <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected }} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-red-500 cursor-pointer accent-red-500" />
+                    </th>
+                  )}
+                  <th className="px-6 py-3 text-left font-medium">Користувач</th>
+                  <th className="px-6 py-3 text-left font-medium">Роль</th>
+                  <th className="px-6 py-3 text-left font-medium">Статус</th>
+                  <th className="px-6 py-3 text-left font-medium">{showDeleted ? 'Видалено' : 'Дата реєстрації'}</th>
+                  {isSuperAdmin && <th className="px-6 py-3" />}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {users.map(u => (
+                  <UserTableRow
+                    key={u.id}
+                    user={u}
+                    showDeleted={showDeleted}
+                    isChecked={selectedIds.has(u.id)}
+                    onToggle={() => toggleSelect(u.id)}
+                    onDelete={isSuperAdmin && u.role !== 'super_admin' && !showDeleted ? () => setConfirmUser(u) : undefined}
+                    onRestore={showDeleted && isSuperAdmin ? () => handleRestore(u) : undefined}
+                    showActions={isSuperAdmin}
+                  />
+                ))}
+              </tbody>
+            </table>
+
+            {meta && meta.pages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                <span className="text-sm text-gray-400">
+                  Сторінка {meta.page} з {meta.pages} · {meta.total} записів
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handlePageChange(page - 1)}
+                    disabled={page <= 1}
+                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:border-brand-light/50 transition-colors cursor-pointer disabled:cursor-default"
+                  >
+                    ← Назад
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page >= meta.pages}
+                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:border-brand-light/50 transition-colors cursor-pointer disabled:cursor-default"
+                  >
+                    Далі →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

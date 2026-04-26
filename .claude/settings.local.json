@@ -15,7 +15,15 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(npm run:*)",
       "Bash(gh pr:*)",
-      "Bash(find C:/CODE/yeschess_school -name *.test.* -o -name *.spec.*)"
+      "Bash(find C:/CODE/yeschess_school -name *.test.* -o -name *.spec.*)",
+      "Bash(docker compose *)",
+      "Bash(grep -r \"sql\\\\`\\\\|sql'\" /c/code/yeschess_school/backend/src --include=\"*.ts\")",
+      "Bash(npm ls *)",
+      "Bash(xargs grep *)",
+      "Bash(npx npm-check-updates *)",
+      "Bash(npm outdated *)",
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(curl -s http://localhost:3000/health)"
     ]
   }
 }

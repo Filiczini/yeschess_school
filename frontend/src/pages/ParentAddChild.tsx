@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
+import ErrorMessage from '../components/ErrorMessage'
+import MobileHeader from '../components/MobileHeader'
 
 export default function ParentAddChild() {
   const navigate = useNavigate()
@@ -62,21 +64,7 @@ export default function ParentAddChild() {
       <div className="max-w-sm mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <Link
-            to="/parent"
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="16" height="16"></iconify-icon>
-            Назад
-          </Link>
-        </div>
+        <MobileHeader backTo="/parent" />
 
         <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white">
           <h1 className="text-xl font-bold font-heading mb-4">Додати дитину</h1>
@@ -106,11 +94,7 @@ export default function ParentAddChild() {
             <>
               <p className="text-blue-200 text-sm mb-4">Створіть акаунт для вашої дитини</p>
 
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 text-sm text-red-300">
-                  {error}
-                </div>
-              )}
+              <ErrorMessage error={error} />
 
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
@@ -194,11 +178,7 @@ export default function ParentAddChild() {
                 Дитина вже зареєстрована? Попросіть її згенерувати код у своєму акаунті та введіть його нижче.
               </p>
 
-              {codeError && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 text-sm text-red-300">
-                  {codeError}
-                </div>
-              )}
+              <ErrorMessage error={codeError} />
 
               <form onSubmit={handleLinkByCode} className="space-y-4">
                 <div>

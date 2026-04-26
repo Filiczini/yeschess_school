@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { useSession, signOut } from '../lib/auth-client'
+import { useSession } from '../lib/auth-client'
+import SignOutButton from '../components/SignOutButton'
+import MobileHeader from '../components/MobileHeader'
 
 interface UserProfile {
   role: string
@@ -57,11 +59,6 @@ export default function CoachDashboard() {
       })
   }, [])
 
-  async function handleSignOut() {
-    await signOut()
-    window.location.href = '/'
-  }
-
   const isPending = profile?.status === 'pending'
 
   return (
@@ -69,19 +66,8 @@ export default function CoachDashboard() {
       {/* Header */}
       <div className="max-w-xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:logout-2-linear" width="16" height="16"></iconify-icon>
-            Вийти
-          </button>
+          <MobileHeader />
+          <SignOutButton variant="dark" />
         </div>
 
         {/* Welcome card */}

@@ -103,6 +103,13 @@ export const lead = pgTable('leads', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+export const processedWebhook = pgTable('processed_webhooks', {
+  eventId: text('event_id').primaryKey(),
+  provider: text('provider').notNull(), // stripe | liqpay
+  eventType: text('event_type'),
+  processedAt: timestamp('processed_at').notNull().defaultNow(),
+})
+
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
   expiresAt: timestamp('expires_at').notNull(),
@@ -425,6 +432,10 @@ export const booking = pgTable('bookings', {
   coachIdx: index('bookings_coach_id_idx').on(t.coachId),
   statusIdx: index('bookings_status_idx').on(t.status),
   scheduledAtIdx: index('bookings_scheduled_at_idx').on(t.scheduledAt),
+  // Partial unique index — prevents double-booking (excludes cancelled/refunded)
+  uniqueActiveSlot: uniqueIndex('bookings_coach_scheduled_active_uidx')
+    .on(t.coachId, t.scheduledAt)
+    .where(sql`status NOT IN ('cancelled', 'refunded')`),
 }))
 
 export const review = pgTable('reviews', {

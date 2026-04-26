@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
+import { StatusBadge } from '../components/Badge'
+import MobileHeader from '../components/MobileHeader'
+import { useApi, apiPatch } from '../hooks/useApi'
+import { formatDateTime } from '../lib/date'
 
 interface Booking {
   id: string
@@ -12,58 +16,16 @@ interface Booking {
   studentEmail: string
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Очікує',
-  confirmed: 'Підтверджено',
-  completed: 'Завершено',
-  cancelled: 'Скасовано',
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  pending: 'bg-yellow-400/20 border-yellow-400/30 text-yellow-300',
-  confirmed: 'bg-emerald-400/20 border-emerald-400/30 text-emerald-300',
-  completed: 'bg-blue-400/20 border-blue-400/30 text-blue-300',
-  cancelled: 'bg-red-400/20 border-red-400/30 text-red-300',
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString('uk-UA', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-    timeZone: 'UTC',
-  })
-}
-
 export default function CoachBookings() {
-  const [bookings, setBookings] = useState<Booking[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: bookings, loading, refetch } = useApi<Booking[]>('/api/coach/bookings', { normalizeArray: true })
   const [updating, setUpdating] = useState<string | null>(null)
   const [cancelDialog, setCancelDialog] = useState<{ id: string } | null>(null)
   const [cancelReason, setCancelReason] = useState('')
 
-  useEffect(() => {
-    fetch('/api/coach/bookings', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        setBookings(Array.isArray(data) ? data : [])
-        setLoading(false)
-      })
-  }, [])
-
   async function updateStatus(id: string, status: 'confirmed' | 'completed' | 'cancelled', reason?: string) {
     setUpdating(id)
-    const res = await fetch(`/api/bookings/${id}/status`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, cancelReason: reason }),
-    })
-    if (res.ok) {
-      setBookings(prev => prev.map(b =>
-        b.id === id ? { ...b, status, cancelReason: reason ?? null } : b
-      ))
-    }
+    await apiPatch(`/api/bookings/${id}/status`, { status, cancelReason: reason })
+    await refetch()
     setUpdating(null)
   }
 
@@ -78,8 +40,9 @@ export default function CoachBookings() {
     setCancelDialog(null)
   }
 
-  const upcoming = bookings.filter(b => ['pending', 'confirmed'].includes(b.status))
-  const past = bookings.filter(b => ['completed', 'cancelled'].includes(b.status))
+  const list = bookings ?? []
+  const upcoming = list.filter(b => ['pending', 'confirmed'].includes(b.status))
+  const past = list.filter(b => ['completed', 'cancelled'].includes(b.status))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
@@ -116,25 +79,12 @@ export default function CoachBookings() {
         </div>
       )}
       <div className="max-w-xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 text-white mb-8">
-          <Link
-            to="/coach"
-            className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="18" height="18"></iconify-icon>
-          </Link>
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-            <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-          </div>
-          <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-        </div>
-
+        <MobileHeader backTo="/coach" />
         <h1 className="text-xl font-bold font-heading text-white mb-6">Бронювання</h1>
 
         {loading ? (
           <div className="text-sm text-blue-200">Завантаження...</div>
-        ) : bookings.length === 0 ? (
+        ) : list.length === 0 ? (
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-white">
             <iconify-icon icon="solar:calendar-bold-duotone" width="40" height="40" className="text-blue-200 mb-3"></iconify-icon>
             <p className="text-blue-200 text-sm">Бронювань ще немає. Налаштуй розклад щоб учні могли записуватись.</p>
@@ -198,14 +148,12 @@ function BookingCard({
           <div className="font-semibold truncate">{b.studentName}</div>
           <div className="text-sm text-blue-200 truncate">{b.studentEmail}</div>
         </div>
-        <span className={`flex-shrink-0 text-xs px-2 py-1 border rounded-full whitespace-nowrap ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
-          {STATUS_LABEL[b.status] ?? b.status}
-        </span>
+        <StatusBadge status={b.status} variant="dark" />
       </div>
 
       <div className="flex items-center gap-2 text-sm text-blue-200 mb-3">
         <iconify-icon icon="solar:calendar-linear" width="16" height="16"></iconify-icon>
-        {formatDate(b.scheduledAt)}
+        {formatDateTime(b.scheduledAt, { utc: true })}
         <span className="text-blue-300">·</span>
         <iconify-icon icon="solar:clock-circle-linear" width="16" height="16"></iconify-icon>
         {b.durationMin} хв

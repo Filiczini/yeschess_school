@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+
+import MobileHeader from '../components/MobileHeader'
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 
@@ -66,18 +67,7 @@ export default function CoachSchedule() {
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
       <div className="max-w-lg mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-3 text-white mb-8">
-          <Link
-            to="/coach"
-            className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="18" height="18"></iconify-icon>
-          </Link>
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-            <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-          </div>
-          <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-        </div>
+        <MobileHeader backTo="/coach" />
 
         <h1 className="text-xl font-bold font-heading text-white mb-4">Мій розклад</h1>
         <p className="text-sm text-blue-200 mb-6">

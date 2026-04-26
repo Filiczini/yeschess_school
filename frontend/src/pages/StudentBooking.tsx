@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import MobileHeader from '../components/MobileHeader'
+import { formatDateTime, todayStr } from '../lib/date'
 
 interface CoachInfo {
   coachProfileId: string
@@ -36,19 +37,6 @@ const STATUS_COLOR: Record<string, string> = {
   confirmed: 'bg-emerald-400/20 border-emerald-400/30 text-emerald-300',
   completed: 'bg-blue-400/20 border-blue-400/30 text-blue-300',
   cancelled: 'bg-red-400/20 border-red-400/30 text-red-300',
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString('uk-UA', {
-    day: 'numeric', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-    timeZone: 'UTC',
-  })
-}
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
 }
 
 export default function StudentBooking() {
@@ -126,18 +114,7 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
       <div className="max-w-lg mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-3 text-white mb-8">
-          <Link
-            to="/student"
-            className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="18" height="18"></iconify-icon>
-          </Link>
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-            <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-          </div>
-          <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-        </div>
+        <MobileHeader backTo="/student" />
 
         <h1 className="text-xl font-bold font-heading text-white mb-4">Записатись на заняття</h1>
 
@@ -240,7 +217,7 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
                   bookings.map(b => (
                     <div key={b.id} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white">
                       <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="text-sm font-medium">{formatDate(b.scheduledAt)}</div>
+                        <div className="text-sm font-medium">{formatDateTime(b.scheduledAt, { utc: true, longMonth: true })}</div>
                         <span className={`flex-shrink-0 text-xs px-2.5 py-1 border rounded-full ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
                           {STATUS_LABEL[b.status] ?? b.status}
                         </span>

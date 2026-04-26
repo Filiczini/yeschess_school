@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { useSession, signOut } from '../lib/auth-client'
+import { useSession } from '../lib/auth-client'
+import SignOutButton from '../components/SignOutButton'
+import MobileHeader from '../components/MobileHeader'
+import ProfileCard from '../components/student/ProfileCard'
+import OnboardingSteps from '../components/student/OnboardingSteps'
+import RatingsCard from '../components/student/RatingsCard'
+import QuickActions from '../components/student/QuickActions'
+import LinkCodeSection from '../components/student/LinkCodeSection'
+import ParentSection from '../components/student/ParentSection'
+import CoachCard from '../components/student/CoachCard'
 
 interface StudentProfile {
   level: string | null
@@ -33,12 +42,6 @@ interface CoachInfo {
   specializations: string[]
 }
 
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Початківець',
-  intermediate: 'Середній',
-  advanced: 'Просунутий',
-}
-
 interface LinkCodeState {
   code: string
   expiresAt: string
@@ -67,11 +70,6 @@ export default function StudentDashboard() {
     })
   }, [])
 
-  async function handleSignOut() {
-    await signOut()
-    window.location.href = '/'
-  }
-
   async function handleGenerateLinkCode() {
     setLinkCodeLoading(true)
     const res = await fetch('/api/student/link-code', { method: 'POST', credentials: 'include' })
@@ -86,305 +84,74 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
       <div className="max-w-xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:logout-2-linear" width="16" height="16"></iconify-icon>
-            Вийти
-          </button>
+          <MobileHeader />
+          <SignOutButton variant="dark" />
         </div>
 
-        {/* Welcome card */}
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 mb-4 text-white">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-                <iconify-icon icon="solar:user-bold-duotone" width="28" height="28"></iconify-icon>
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl font-bold font-heading truncate">{session?.user.name}</h1>
-                <p className="text-blue-200 text-sm truncate">{session?.user.email}</p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-xs px-2.5 py-0.5 bg-white/10 border border-white/20 rounded-full text-blue-100">
-                    Учень
-                  </span>
-                  {profile?.level && (
-                    <span className="text-xs px-2.5 py-0.5 bg-emerald-400/20 border border-emerald-400/30 rounded-full text-emerald-300">
-                      {LEVEL_LABELS[profile.level] ?? profile.level}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <Link
-              to="/student/profile/edit"
-              className="flex-shrink-0 p-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white transition-colors"
-              title="Редагувати профіль"
-            >
-              <iconify-icon icon="solar:pen-linear" width="18" height="18"></iconify-icon>
-            </Link>
-          </div>
-        </div>
+        <ProfileCard name={session?.user.name ?? ''} email={session?.user.email ?? ''} level={profile?.level} />
 
-        {/* Onboarding — new user with no profile and no coach */}
-        {!loading && !hasProfile && !coach && (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-5 mb-4 text-white">
-            <div className="flex items-center gap-2 mb-4">
-              <iconify-icon icon="solar:rocket-bold-duotone" width="20" height="20" className="text-amber-300"></iconify-icon>
-              <span className="font-semibold text-sm">Як почати навчання</span>
-            </div>
-            <div className="space-y-3">
-              {[
-                {
-                  num: '1',
-                  done: false,
-                  title: 'Заповни свій профіль',
-                  desc: 'Вкажи рівень, рейтинг і нікнейми',
-                  action: { label: 'Заповнити', to: '/student/profile/edit' },
-                  color: 'bg-violet-400/20 border-violet-400/30 text-violet-300',
-                },
-                {
-                  num: '2',
-                  done: false,
-                  title: 'Дочекайся призначення тренера',
-                  desc: 'Адміністратор призначить тобі тренера найближчим часом',
-                  action: null,
-                  color: 'bg-blue-400/20 border-blue-400/30 text-blue-300',
-                },
-                {
-                  num: '3',
-                  done: false,
-                  title: 'Запишись на перше заняття',
-                  desc: 'Обери зручний час у розкладі тренера',
-                  action: null,
-                  color: 'bg-emerald-400/20 border-emerald-400/30 text-emerald-300',
-                },
-              ].map(step => (
-                <div key={step.num} className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold ${step.color}`}>
-                    {step.num}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{step.title}</div>
-                    <div className="text-xs text-blue-200 mt-0.5">{step.desc}</div>
-                    {step.action && (
-                      <Link
-                        to={step.action.to}
-                        className="inline-block mt-1.5 text-xs text-white underline underline-offset-2"
-                      >
-                        {step.action.label} →
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Profile hint — has no profile but has a coach */}
-        {!loading && !hasProfile && coach && (
-          <div className="bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4 mb-4 text-sm text-amber-200 flex gap-3">
-            <iconify-icon icon="solar:pen-bold-duotone" width="20" height="20" className="flex-shrink-0 mt-0.5 text-amber-300"></iconify-icon>
-            <span>
-              Заповни профіль — тренер зможе краще підготуватись до занять.
-              {' '}<Link to="/student/profile/edit" className="underline underline-offset-2 text-white">Заповнити зараз</Link>
-            </span>
-          </div>
-        )}
-
-        {/* Ratings */}
         {!loading && (
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 text-center text-white">
-              <iconify-icon icon="solar:ranking-bold-duotone" width="22" height="22" className="mb-1 text-blue-200"></iconify-icon>
-              <div className="text-xl font-bold font-heading">
-                {profile?.fideRating ?? '—'}
-              </div>
-              <div className="text-xs text-blue-200">FIDE рейтинг</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 text-center text-white">
-              <iconify-icon icon="solar:star-bold-duotone" width="22" height="22" className="mb-1 text-blue-200"></iconify-icon>
-              <div className="text-xl font-bold font-heading">
-                {profile?.clubRating ?? '—'}
-              </div>
-              <div className="text-xs text-blue-200">Клубний рейтинг</div>
-            </div>
-          </div>
-        )}
+          <>
+            <OnboardingSteps hasProfile={!!hasProfile} hasCoach={!!coach} />
 
-        {/* Platform usernames */}
-        {!loading && (profile?.chesscomUsername || profile?.lichessUsername) && (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
-            <h2 className="text-sm font-semibold text-blue-200 mb-3">Платформи</h2>
-            <div className="space-y-2">
-              {profile?.chesscomUsername && (
-                <div className="flex items-center gap-3 text-sm">
-                  <iconify-icon icon="simple-icons:chessdotcom" width="18" height="18" className="text-emerald-400"></iconify-icon>
-                  <span className="text-blue-100">chess.com</span>
-                  <span className="ml-auto font-medium">{profile.chesscomUsername}</span>
-                </div>
-              )}
-              {profile?.lichessUsername && (
-                <div className="flex items-center gap-3 text-sm">
-                  <iconify-icon icon="simple-icons:lichess" width="18" height="18" className="text-blue-300"></iconify-icon>
-                  <span className="text-blue-100">lichess.org</span>
-                  <span className="ml-auto font-medium">{profile.lichessUsername}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Quick actions — only show when coach is assigned */}
-        {!loading && coach && (
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button
-              onClick={() => navigate('/student/booking')}
-              className="bg-gradient-to-br from-violet-500/20 to-purple-500/20 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white hover:border-white/40 transition-colors text-left"
-            >
-              <iconify-icon icon="solar:calendar-add-bold-duotone" width="26" height="26" className="mb-2 block"></iconify-icon>
-              <div className="font-semibold text-sm font-heading">Записатись</div>
-              <div className="text-xs text-blue-200 mt-0.5">Обрати слот</div>
-            </button>
-            <Link
-              to="/student/booking"
-              className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white hover:border-white/40 transition-colors"
-            >
-              <iconify-icon icon="solar:calendar-check-bold-duotone" width="26" height="26" className="mb-2 block"></iconify-icon>
-              <div className="font-semibold text-sm font-heading">Мої заняття</div>
-              <div className="text-xs text-blue-200 mt-0.5">Розклад та статус</div>
-            </Link>
-          </div>
-        )}
-
-        {/* Bio & birthdate */}
-        {!loading && (profile?.bio || profile?.birthdate) && (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
-            {profile.birthdate && (
-              <div className="flex items-center gap-3 text-sm mb-2">
-                <iconify-icon icon="solar:calendar-linear" width="16" height="16" className="text-blue-300 shrink-0"></iconify-icon>
-                <span className="text-blue-200">
-                  {new Date(profile.birthdate).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {!hasProfile && coach && (
+              <div className="bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4 mb-4 text-sm text-amber-200 flex gap-3">
+                <iconify-icon icon="solar:pen-bold-duotone" width="20" height="20" className="flex-shrink-0 mt-0.5 text-amber-300"></iconify-icon>
+                <span>
+                  Заповни профіль — тренер зможе краще підготуватись до занять.
+                  {' '}<Link to="/student/profile/edit" className="underline underline-offset-2 text-white">Заповнити зараз</Link>
                 </span>
               </div>
             )}
-            {profile.bio && (
-              <p className="text-sm text-blue-100 leading-relaxed">{profile.bio}</p>
-            )}
-          </div>
-        )}
 
-        {/* Link to parent */}
-        {!loading && (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
-            <h2 className="text-sm font-semibold text-blue-200 mb-3">Прив'язка до батька</h2>
-            {linkCode ? (
-              <div>
-                <p className="text-xs text-blue-200 mb-3">
-                  Передайте цей код батьку — він вводить його у своєму акаунті.
-                  Діє до {new Date(linkCode.expiresAt).toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}.
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-center">
-                    <span className="text-2xl font-bold tracking-[0.3em] font-heading">{linkCode.code}</span>
-                  </div>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(linkCode.code)}
-                    className="p-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors"
-                    title="Скопіювати"
-                  >
-                    <iconify-icon icon="solar:copy-linear" width="18" height="18"></iconify-icon>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={handleGenerateLinkCode}
-                disabled={linkCodeLoading}
-                className="flex items-center gap-2 text-sm text-blue-200 hover:text-white transition-colors disabled:opacity-50"
-              >
-                <iconify-icon icon="solar:link-bold-duotone" width="18" height="18"></iconify-icon>
-                {linkCodeLoading ? 'Генерація...' : 'Отримати код прив\'язки'}
-              </button>
-            )}
-          </div>
-        )}
+            <RatingsCard fideRating={profile?.fideRating} clubRating={profile?.clubRating} />
 
-        {/* Parent */}
-        {!loading && parent !== undefined && (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
-            <h2 className="text-sm font-semibold text-blue-200 mb-3">Батько/Мати</h2>
-            {parent ? (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-                  <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" height="20"></iconify-icon>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm truncate">{parent.name}</div>
-                  <div className="text-xs text-blue-200 truncate">{parent.email}</div>
-                  {parent.phone && (
-                    <div className="text-xs text-blue-300 mt-0.5 flex items-center gap-1">
-                      <iconify-icon icon="solar:phone-linear" width="12" height="12"></iconify-icon>
-                      {parent.phone}
-                      {parent.contactMethod && <span className="capitalize">· {parent.contactMethod}</span>}
+            {(profile?.chesscomUsername || profile?.lichessUsername) && (
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+                <h2 className="text-sm font-semibold text-blue-200 mb-3">Платформи</h2>
+                <div className="space-y-2">
+                  {profile?.chesscomUsername && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <iconify-icon icon="simple-icons:chessdotcom" width="18" height="18" className="text-emerald-400"></iconify-icon>
+                      <span className="text-blue-100">chess.com</span>
+                      <span className="ml-auto font-medium">{profile.chesscomUsername}</span>
+                    </div>
+                  )}
+                  {profile?.lichessUsername && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <iconify-icon icon="simple-icons:lichess" width="18" height="18" className="text-blue-300"></iconify-icon>
+                      <span className="text-blue-100">lichess.org</span>
+                      <span className="ml-auto font-medium">{profile.lichessUsername}</span>
                     </div>
                   )}
                 </div>
               </div>
-            ) : (
-              <div className="text-sm text-blue-300">Батька не прив'язано</div>
             )}
-          </div>
+
+            {coach && <QuickActions onBook={() => navigate('/student/booking')} />}
+
+            {(profile?.bio || profile?.birthdate) && (
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+                {profile?.birthdate && (
+                  <div className="flex items-center gap-3 text-sm mb-2">
+                    <iconify-icon icon="solar:calendar-linear" width="16" height="16" className="text-blue-300 shrink-0"></iconify-icon>
+                    <span className="text-blue-200">
+                      {new Date(profile.birthdate).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
+                )}
+                {profile?.bio && <p className="text-sm text-blue-100 leading-relaxed">{profile.bio}</p>}
+              </div>
+            )}
+
+            <LinkCodeSection code={linkCode} loading={linkCodeLoading} onGenerate={handleGenerateLinkCode} />
+
+            {parent !== undefined && <ParentSection parent={parent} />}
+          </>
         )}
 
-        {/* Assigned coach */}
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
-          <h2 className="text-sm font-semibold text-blue-200 mb-3">Мій тренер</h2>
-          {loading ? (
-            <div className="text-sm text-blue-200">Завантаження...</div>
-          ) : coach ? (
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-                <iconify-icon icon="solar:user-bold-duotone" width="24" height="24"></iconify-icon>
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold truncate">{coach.coachName}</div>
-                <div className="text-sm text-blue-200 truncate">{coach.coachEmail}</div>
-                <div className="flex items-center gap-2 mt-1">
-                  {coach.title && (
-                    <span className="text-xs px-2 py-0.5 bg-amber-400/20 border border-amber-400/30 rounded-full text-amber-300">
-                      {coach.title}
-                    </span>
-                  )}
-                  {coach.fideRating && (
-                    <span className="text-xs text-blue-300">FIDE {coach.fideRating}</span>
-                  )}
-                  {coach.avgRating && (
-                    <span className="text-xs text-blue-300 flex items-center gap-0.5">
-                      <iconify-icon icon="solar:star-bold" width="12" height="12" className="text-amber-400"></iconify-icon>
-                      {parseFloat(coach.avgRating).toFixed(1)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-blue-300 flex items-center gap-2">
-              <iconify-icon icon="solar:user-plus-rounded-linear" width="18" height="18"></iconify-icon>
-              Тренер ще не призначений
-            </div>
-          )}
-        </div>
+        <CoachCard coach={coach} loading={loading} />
       </div>
     </div>
   )

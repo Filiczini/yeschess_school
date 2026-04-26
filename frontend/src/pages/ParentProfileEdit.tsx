@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { useSession } from '../lib/auth-client'
+import ErrorMessage from '../components/ErrorMessage'
+import MobileHeader from '../components/MobileHeader'
 
 export default function ParentProfileEdit() {
   const { data: session } = useSession()
@@ -49,21 +51,7 @@ export default function ParentProfileEdit() {
       <div className="max-w-sm mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <Link
-            to="/parent"
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="16" height="16"></iconify-icon>
-            Назад
-          </Link>
-        </div>
+        <MobileHeader backTo="/parent" />
 
         <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white">
           <div className="flex items-center gap-3 mb-6">
@@ -76,11 +64,7 @@ export default function ParentProfileEdit() {
             </div>
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 text-sm text-red-300">
-              {error}
-            </div>
-          )}
+          <ErrorMessage error={error} />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

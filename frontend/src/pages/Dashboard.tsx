@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router'
-import { useSession, signOut } from '../lib/auth-client'
+import { useSession } from '../lib/auth-client'
+import SignOutButton from '../components/SignOutButton'
 
 interface UserProfile {
   role: string
@@ -26,11 +27,6 @@ export default function Dashboard() {
       .then(r => r.json())
       .then(setProfile)
   }, [])
-
-  async function handleSignOut() {
-    await signOut()
-    window.location.href = '/'
-  }
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
   const isPending = profile?.status === 'pending'
@@ -102,12 +98,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <button
-            onClick={handleSignOut}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-blue-200 rounded-xl text-sm transition-colors"
-          >
-            Вийти
-          </button>
+          <SignOutButton variant="dark" className="bg-white/5 hover:bg-white/10 border-white/10 text-blue-200" />
         </div>
       </div>
     </div>

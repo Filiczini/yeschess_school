@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
+import MobileHeader from '../components/MobileHeader'
 
 interface CoachProfileData {
   id: string
@@ -37,21 +38,7 @@ export default function CoachProfile() {
       <div className="max-w-xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <Link
-            to="/coach"
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="16" height="16"></iconify-icon>
-            Назад
-          </Link>
-        </div>
+        <MobileHeader backTo="/coach" />
 
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-white text-2xl font-bold font-heading">Мій профіль</h1>

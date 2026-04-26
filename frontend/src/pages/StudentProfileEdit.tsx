@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+import MobileHeader from '../components/MobileHeader'
 
 interface FormState {
   level: string
@@ -94,18 +95,7 @@ export default function StudentProfileEdit() {
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
       <div className="max-w-lg mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-3 text-white mb-8">
-          <button
-            onClick={() => navigate('/student')}
-            className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-colors"
-          >
-            <iconify-icon icon="solar:arrow-left-linear" width="18" height="18"></iconify-icon>
-          </button>
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-            <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-          </div>
-          <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-        </div>
+        <MobileHeader backTo="/student" />
 
         <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white">
           <h1 className="text-xl font-bold font-heading mb-6">Мій профіль</h1>

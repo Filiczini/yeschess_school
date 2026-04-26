@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ErrorMessage from '../components/ErrorMessage'
 
 interface UserOption {
   id: string
@@ -151,12 +152,7 @@ export default function AdminEnrollments() {
               />
             </div>
 
-            {error && (
-              <p className="text-red-600 text-xs flex items-center gap-1.5">
-                <iconify-icon icon="solar:danger-circle-linear" width="14" height="14"></iconify-icon>
-                {error}
-              </p>
-            )}
+            <ErrorMessage error={error} variant="admin" />
 
             <button
               type="submit"

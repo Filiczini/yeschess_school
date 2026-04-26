@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { useSession, signOut } from '../lib/auth-client'
+import { useSession } from '../lib/auth-client'
+import SignOutButton from '../components/SignOutButton'
+import { LevelBadge, Badge } from '../components/Badge'
+import MobileHeader from '../components/MobileHeader'
 
 interface ParentProfile {
   phone: string | null
@@ -18,12 +21,6 @@ interface Child {
   coachName: string | null
   coachTitle: string | null
   upcomingBookings: number
-}
-
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Початківець',
-  intermediate: 'Середній',
-  advanced: 'Просунутий',
 }
 
 export default function ParentDashboard() {
@@ -55,30 +52,14 @@ export default function ParentDashboard() {
 
   const selectedChild = children.find(c => c.id === selectedChildId) ?? null
 
-  async function handleSignOut() {
-    await signOut()
-    window.location.href = '/'
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
       <div className="max-w-xl mx-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3 text-white">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand">
-              <iconify-icon icon="solar:crown-linear" width="20" height="20"></iconify-icon>
-            </div>
-            <span className="font-bold tracking-tight text-lg uppercase font-heading">YesChess</span>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="text-blue-200 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <iconify-icon icon="solar:logout-2-linear" width="16" height="16"></iconify-icon>
-            Вийти
-          </button>
+          <MobileHeader />
+          <SignOutButton variant="dark" />
         </div>
 
         {/* Welcome card */}
@@ -240,9 +221,7 @@ export default function ParentDashboard() {
                           Учень
                         </span>
                         {selectedChild.level && (
-                          <span className="text-xs px-2.5 py-0.5 bg-emerald-400/20 border border-emerald-400/30 rounded-full text-emerald-300">
-                            {LEVEL_LABELS[selectedChild.level] ?? selectedChild.level}
-                          </span>
+                          <LevelBadge level={selectedChild.level} />
                         )}
                       </div>
                     </div>
@@ -300,9 +279,7 @@ export default function ParentDashboard() {
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{selectedChild.coachName}</div>
                         {selectedChild.coachTitle && (
-                          <span className="text-xs px-2 py-0.5 bg-amber-400/20 border border-amber-400/30 rounded-full text-amber-300 mt-1 inline-block">
-                            {selectedChild.coachTitle}
-                          </span>
+                          <Badge className="rounded-full bg-amber-400/20 border-amber-400/30 text-amber-300 mt-1 inline-block">{selectedChild.coachTitle}</Badge>
                         )}
                       </div>
                     </div>

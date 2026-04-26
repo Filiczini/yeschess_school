@@ -1,10 +1,16 @@
 import { Resend } from 'resend'
+import { escape } from 'html-escaper'
 
 const FROM = process.env.EMAIL_FROM ?? 'YesChess <noreply@yeschess.school>'
 const SITE = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY!)
+}
+
+async function send(to: string, subject: string, html: string) {
+  if (!process.env.RESEND_API_KEY) return
+  await getResend().emails.send({ from: FROM, to, subject, html })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,9 +57,7 @@ function wrap(content: string) {
   <div class="wrapper">
     <div class="header">
       <div class="logo">
-        <div class="logo-icon">
-          ♔
-        </div>
+        <div class="logo-icon">♔</div>
         <span class="logo-text">YesChess</span>
       </div>
     </div>
@@ -71,21 +75,14 @@ function wrap(content: string) {
 // ── Email senders ─────────────────────────────────────────────────────────────
 
 export async function sendWelcome(to: string, name: string) {
-  if (!process.env.RESEND_API_KEY) return
-
-  await getResend().emails.send({
-    from: FROM,
-    to,
-    subject: 'Ласкаво просимо до YesChess! ♟️',
-    html: wrap(`
-      <h1>Привіт, ${name}! 👋</h1>
-      <p>Раді вітати тебе в <strong>YesChess School</strong> — онлайн-школі шахів.</p>
-      <p>Твій акаунт створено. Найближчим часом адміністратор призначить тобі тренера — ти отримаєш повідомлення на цей email.</p>
-      <p>Поки що можеш заповнити свій профіль: вкажи рівень, рейтинг і нікнейми на chess.com / lichess.</p>
-      <a href="${SITE}/student/profile/edit" class="btn">Заповнити профіль</a>
-      <p style="margin:0; font-size:14px; color:#94a3b8;">Є питання? Просто відповідай на цей лист.</p>
-    `),
-  })
+  await send(to, 'Ласкаво просимо до YesChess! ♟️', wrap(`
+    <h1>Привіт, ${escape(name)}! 👋</h1>
+    <p>Раді вітати тебе в <strong>YesChess School</strong> — онлайн-школі шахів.</p>
+    <p>Твій акаунт створено. Найближчим часом адміністратор призначить тобі тренера — ти отримаєш повідомлення на цей email.</p>
+    <p>Поки що можеш заповнити свій профіль: вкажи рівень, рейтинг і нікнейми на chess.com / lichess.</p>
+    <a href="${SITE}/student/profile/edit" class="btn">Заповнити профіль</a>
+    <p style="margin:0; font-size:14px; color:#94a3b8;">Є питання? Просто відповідай на цей лист.</p>
+  `))
 }
 
 export async function sendCoachAssigned(
@@ -94,29 +91,22 @@ export async function sendCoachAssigned(
   coachName: string,
   coachEmail: string,
 ) {
-  if (!process.env.RESEND_API_KEY) return
-
-  await getResend().emails.send({
-    from: FROM,
-    to,
-    subject: 'Тобі призначено тренера — YesChess',
-    html: wrap(`
-      <h1>Тренера призначено! 🎉</h1>
-      <p>Привіт, <strong>${studentName}</strong>!</p>
-      <p>Адміністратор призначив тобі тренера. Тепер ти можеш записатись на перше заняття.</p>
-      <div class="card">
-        <div class="card-row">
-          <span class="card-label">Тренер</span>
-          <span class="card-value">${coachName}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Email</span>
-          <span class="card-value">${coachEmail}</span>
-        </div>
+  await send(to, 'Тобі призначено тренера — YesChess', wrap(`
+    <h1>Тренера призначено! 🎉</h1>
+    <p>Привіт, <strong>${escape(studentName)}</strong>!</p>
+    <p>Адміністратор призначив тобі тренера. Тепер ти можеш записатись на перше заняття.</p>
+    <div class="card">
+      <div class="card-row">
+        <span class="card-label">Тренер</span>
+        <span class="card-value">${escape(coachName)}</span>
       </div>
-      <a href="${SITE}/student/booking" class="btn">Записатись на заняття</a>
-    `),
-  })
+      <div class="card-row">
+        <span class="card-label">Email</span>
+        <span class="card-value">${escape(coachEmail)}</span>
+      </div>
+    </div>
+    <a href="${SITE}/student/booking" class="btn">Записатись на заняття</a>
+  `))
 }
 
 export async function sendBookingConfirmed(
@@ -126,37 +116,30 @@ export async function sendBookingConfirmed(
   scheduledAt: Date,
   durationMin: number,
 ) {
-  if (!process.env.RESEND_API_KEY) return
-
-  await getResend().emails.send({
-    from: FROM,
-    to,
-    subject: 'Заняття підтверджено — YesChess',
-    html: wrap(`
-      <h1>Заняття підтверджено ✅</h1>
-      <p>Привіт, <strong>${studentName}</strong>!</p>
-      <p>Твій тренер підтвердив заняття. Чекаємо тебе!</p>
-      <div class="card">
-        <div class="card-row">
-          <span class="card-label">Тренер</span>
-          <span class="card-value">${coachName}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Дата та час</span>
-          <span class="card-value">${formatDate(scheduledAt)}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Тривалість</span>
-          <span class="card-value">${durationMin} хв</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Статус</span>
-          <span class="badge badge-green">Підтверджено</span>
-        </div>
+  await send(to, 'Заняття підтверджено — YesChess', wrap(`
+    <h1>Заняття підтверджено ✅</h1>
+    <p>Привіт, <strong>${escape(studentName)}</strong>!</p>
+    <p>Твій тренер підтвердив заняття. Чекаємо тебе!</p>
+    <div class="card">
+      <div class="card-row">
+        <span class="card-label">Тренер</span>
+        <span class="card-value">${escape(coachName)}</span>
       </div>
-      <a href="${SITE}/student/booking" class="btn">Мої заняття</a>
-    `),
-  })
+      <div class="card-row">
+        <span class="card-label">Дата та час</span>
+        <span class="card-value">${formatDate(scheduledAt)}</span>
+      </div>
+      <div class="card-row">
+        <span class="card-label">Тривалість</span>
+        <span class="card-value">${durationMin} хв</span>
+      </div>
+      <div class="card-row">
+        <span class="card-label">Статус</span>
+        <span class="badge badge-green">Підтверджено</span>
+      </div>
+    </div>
+    <a href="${SITE}/student/booking" class="btn">Мої заняття</a>
+  `))
 }
 
 export async function sendBookingCancelled(
@@ -166,54 +149,40 @@ export async function sendBookingCancelled(
   scheduledAt: Date,
   cancelReason?: string | null,
 ) {
-  if (!process.env.RESEND_API_KEY) return
-
-  await getResend().emails.send({
-    from: FROM,
-    to,
-    subject: 'Заняття скасовано — YesChess',
-    html: wrap(`
-      <h1>Заняття скасовано</h1>
-      <p>Привіт, <strong>${studentName}</strong>!</p>
-      <p>На жаль, заняття було скасовано.</p>
-      <div class="card">
-        <div class="card-row">
-          <span class="card-label">Тренер</span>
-          <span class="card-value">${coachName}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Дата та час</span>
-          <span class="card-value">${formatDate(scheduledAt)}</span>
-        </div>
-        ${cancelReason ? `
-        <div class="card-row">
-          <span class="card-label">Причина</span>
-          <span class="card-value">${cancelReason}</span>
-        </div>` : ''}
-        <div class="card-row">
-          <span class="card-label">Статус</span>
-          <span class="badge badge-red">Скасовано</span>
-        </div>
+  await send(to, 'Заняття скасовано — YesChess', wrap(`
+    <h1>Заняття скасовано</h1>
+    <p>Привіт, <strong>${escape(studentName)}</strong>!</p>
+    <p>На жаль, заняття було скасовано.</p>
+    <div class="card">
+      <div class="card-row">
+        <span class="card-label">Тренер</span>
+        <span class="card-value">${escape(coachName)}</span>
       </div>
-      <p>Ти можеш записатись на інший зручний час.</p>
-      <a href="${SITE}/student/booking" class="btn">Обрати інший час</a>
-    `),
-  })
+      <div class="card-row">
+        <span class="card-label">Дата та час</span>
+        <span class="card-value">${formatDate(scheduledAt)}</span>
+      </div>
+      ${cancelReason ? `
+      <div class="card-row">
+        <span class="card-label">Причина</span>
+        <span class="card-value">${escape(cancelReason)}</span>
+      </div>` : ''}
+      <div class="card-row">
+        <span class="card-label">Статус</span>
+        <span class="badge badge-red">Скасовано</span>
+      </div>
+    </div>
+    <p>Ти можеш записатись на інший зручний час.</p>
+    <a href="${SITE}/student/booking" class="btn">Обрати інший час</a>
+  `))
 }
 
 export async function sendPasswordReset(to: string, resetUrl: string) {
-  if (!process.env.RESEND_API_KEY) return
-
-  await getResend().emails.send({
-    from: FROM,
-    to,
-    subject: 'Відновлення паролю — YesChess',
-    html: wrap(`
-      <h1>Відновлення паролю 🔑</h1>
-      <p>Ти (або хтось інший) запросив скидання паролю для цього акаунту.</p>
-      <p>Натисни кнопку нижче щоб встановити новий пароль. Посилання дійсне <strong>1 годину</strong>.</p>
-      <a href="${resetUrl}" class="btn">Встановити новий пароль</a>
-      <p style="margin:0; font-size:13px; color:#94a3b8;">Якщо ти не запитував скидання — просто ігноруй цей лист.</p>
-    `),
-  })
+  await send(to, 'Відновлення паролю — YesChess', wrap(`
+    <h1>Відновлення паролю 🔑</h1>
+    <p>Ти (або хтось інший) запросив скидання паролю для цього акаунту.</p>
+    <p>Натисни кнопку нижче щоб встановити новий пароль. Посилання дійсне <strong>1 годину</strong>.</p>
+    <a href="${resetUrl}" class="btn">Встановити новий пароль</a>
+    <p style="margin:0; font-size:13px; color:#94a3b8;">Якщо ти не запитував скидання — просто ігноруй цей лист.</p>
+  `))
 }

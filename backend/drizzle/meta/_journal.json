@@ -64,6 +64,20 @@
       "when": 1774714787732,
       "tag": "0008_omniscient_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777186732054,
+      "tag": "0009_narrow_king_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777191846247,
+      "tag": "0010_thin_wallow",
+      "breakpoints": true
     }
   ]
 }

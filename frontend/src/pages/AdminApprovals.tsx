@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { RoleBadge, Badge } from '../components/Badge'
+import { formatDateTime } from '../lib/date'
 
 interface PendingUser {
   id: string
@@ -9,21 +11,9 @@ interface PendingUser {
   createdAt: string
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  coach: 'Тренер',
-  school_owner: 'Власник школи',
-}
-
 const ROLE_ICONS: Record<string, string> = {
   coach: 'solar:cup-star-linear',
   school_owner: 'solar:buildings-2-linear',
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('uk-UA', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
 }
 
 export default function AdminApprovals() {
@@ -130,23 +120,21 @@ export default function AdminApprovals() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-gray-900">{u.name}</p>
-                        <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md border border-amber-200">
-                          {ROLE_LABELS[u.role] ?? u.role}
-                        </span>
+                        <RoleBadge role={u.role} />
                         {result && (
-                          <span className={`text-xs px-2 py-0.5 rounded-md border font-medium ${
+                          <Badge className={`rounded-md ${
                             result === 'approved'
                               ? 'bg-green-50 text-green-700 border-green-200'
                               : 'bg-red-50 text-red-700 border-red-200'
                           }`}>
                             {result === 'approved' ? '✓ Підтверджено' : '✗ Відхилено'}
-                          </span>
+                          </Badge>
                         )}
                       </div>
                       <p className="text-gray-500 text-xs mt-0.5">{u.email}</p>
                       <p className="text-gray-400 text-xs mt-1 flex items-center gap-1">
                         <iconify-icon icon="solar:clock-circle-linear" width="12" height="12"></iconify-icon>
-                        Зареєстрований {formatDate(u.createdAt)}
+                        Зареєстрований {formatDateTime(u.createdAt, { utc: true })}
                       </p>
                     </div>
                   </div>

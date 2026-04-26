@@ -261,6 +261,50 @@ describe('Student Routes', () => {
     })
   })
 
+  describe('GET /api/student/parent', () => {
+    it('returns parent info when linked', async () => {
+      const app = await buildTestApp()
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => Promise.resolve([{ id: 'parent-1', name: 'Parent User', email: 'parent@test.com', phone: '+380991111111', contactMethod: 'telegram' }])),
+          })),
+        })),
+      } as any)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/student/parent',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body.name).toBe('Parent User')
+    })
+
+    it('returns null when no parent linked', async () => {
+      const app = await buildTestApp()
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => Promise.resolve([])),
+          })),
+        })),
+      } as any)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/student/parent',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body).toBeNull()
+    })
+  })
+
   describe('POST /api/student/link-code', () => {
     it('generates a 10-char link code for students', async () => {
       const app = await buildTestApp()

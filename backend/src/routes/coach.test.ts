@@ -129,6 +129,33 @@ describe('Coach Routes', () => {
       expect(res.statusCode).toBe(201)
     })
 
+    it('updates existing profile', async () => {
+      const app = await buildTestApp()
+
+      vi.mocked(db.select).mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => Promise.resolve([{ role: 'coach' }])),
+        })),
+      } as any).mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => Promise.resolve([{ id: 'profile-1' }])),
+        })),
+      } as any)
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/coach/profile',
+        payload: {
+          hourlyRate: '600.00',
+          bio: 'Updated bio',
+        },
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body).toBeDefined()
+    })
+
     it('returns 403 for non-coach users', async () => {
       const app = await buildTestApp()
 
@@ -182,6 +209,38 @@ describe('Coach Routes', () => {
       expect(res.statusCode).toBe(403)
       const body = JSON.parse(res.payload)
       expect(body.error).toContain('Coach profile not found')
+    })
+
+    it('returns list of students', async () => {
+      const app = await buildTestApp()
+      vi.mocked(getCoachProfile).mockResolvedValue({ id: 'profile-1' } as any)
+
+      const mockStudents = [
+        { enrollmentId: 'e1', studentId: 's1', studentName: 'Alice', studentEmail: 'alice@test.com', enrolledAt: new Date().toISOString(), notes: null, level: 'beginner', fideRating: 1000, clubRating: 900, chesscomUsername: 'alicechess', lichessUsername: 'alicelichess' },
+      ]
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            leftJoin: vi.fn(() => ({
+              where: vi.fn(() => ({
+                orderBy: vi.fn(() => Promise.resolve(mockStudents)),
+              })),
+            })),
+          })),
+        })),
+      } as any)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/coach/students',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(Array.isArray(body)).toBe(true)
+      expect(body).toHaveLength(1)
+      expect(body[0].studentName).toBe('Alice')
     })
   })
 

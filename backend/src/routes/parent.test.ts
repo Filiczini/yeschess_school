@@ -229,18 +229,136 @@ describe('Parent Routes', () => {
   })
 
   describe('GET /api/parent/children', () => {
-    it.skip('returns list of children', async () => {
-      // Complex Drizzle joins deferred to integration tests with real DB
+    it('returns list of children with upcoming bookings', async () => {
+      const app = await buildTestApp()
+      const mockChildren = [
+        { id: 'child-1', name: 'Child One', email: 'child@test.com', level: 'beginner', fideRating: 1000, clubRating: 900, coachName: 'Coach A', coachTitle: 'FM' },
+      ]
+
+      const roleFrom = vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([{ role: 'parent' }])),
+      }))
+
+      const whereFn = vi.fn(() => Promise.resolve(mockChildren))
+      const leftJoin4 = vi.fn(() => ({ where: whereFn }))
+      const leftJoin3 = vi.fn(() => ({ leftJoin: leftJoin4 }))
+      const leftJoin2 = vi.fn(() => ({ leftJoin: leftJoin3 }))
+      const leftJoin1 = vi.fn(() => ({ leftJoin: leftJoin2 }))
+      const innerJoin1 = vi.fn(() => ({ leftJoin: leftJoin1 }))
+      const childrenFrom = vi.fn(() => ({ innerJoin: innerJoin1 }))
+
+      const groupByFn = vi.fn(() => Promise.resolve([{ studentId: 'child-1', count: 2 }]))
+      const whereFn2 = vi.fn(() => ({ groupBy: groupByFn }))
+      const bookingsFrom = vi.fn(() => ({ where: whereFn2 }))
+
+      vi.mocked(db.select)
+        .mockReturnValueOnce({ from: roleFrom } as any)
+        .mockReturnValueOnce({ from: childrenFrom } as any)
+        .mockReturnValueOnce({ from: bookingsFrom } as any)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/parent/children',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(Array.isArray(body)).toBe(true)
+      expect(body).toHaveLength(1)
+      expect(body[0].name).toBe('Child One')
+      expect(body[0].upcomingBookings).toBe(2)
+    })
+
+    it('returns empty array when no children', async () => {
+      const app = await buildTestApp()
+
+      const roleFrom = vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([{ role: 'parent' }])),
+      }))
+
+      const whereFn = vi.fn(() => Promise.resolve([]))
+      const leftJoin4 = vi.fn(() => ({ where: whereFn }))
+      const leftJoin3 = vi.fn(() => ({ leftJoin: leftJoin4 }))
+      const leftJoin2 = vi.fn(() => ({ leftJoin: leftJoin3 }))
+      const leftJoin1 = vi.fn(() => ({ leftJoin: leftJoin2 }))
+      const innerJoin1 = vi.fn(() => ({ leftJoin: leftJoin1 }))
+      const childrenFrom = vi.fn(() => ({ innerJoin: innerJoin1 }))
+
+      vi.mocked(db.select)
+        .mockReturnValueOnce({ from: roleFrom } as any)
+        .mockReturnValueOnce({ from: childrenFrom } as any)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/parent/children',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body).toEqual([])
     })
   })
 
   describe('POST /api/parent/children', () => {
-    it.skip('creates a child account', async () => {
-      // Requires auth.api.signUpEmail mock + DB integration
+    it('creates a child account', async () => {
+      const app = await buildTestApp()
+
+      const roleFrom = vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([{ role: 'parent' }])),
+      }))
+      const existingFrom = vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([])),
+      }))
+
+      vi.mocked(db.select)
+        .mockReturnValueOnce({ from: roleFrom } as any)
+        .mockReturnValueOnce({ from: existingFrom } as any)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/parent/children',
+        payload: {
+          name: 'New Child',
+          email: 'newchild@test.com',
+          password: 'password123',
+          level: 'beginner',
+        },
+      })
+
+      expect(res.statusCode).toBe(201)
+      const body = JSON.parse(res.payload)
+      expect(body.id).toBe('new-child-1')
+      expect(auth.api.signUpEmail).toHaveBeenCalled()
     })
 
-    it.skip('returns 409 when email already exists', async () => {
-      // Requires DB integration
+    it('returns 409 when email already exists', async () => {
+      const app = await buildTestApp()
+
+      const roleFrom = vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([{ role: 'parent' }])),
+      }))
+      const existingFrom = vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve([{ id: 'existing-user' }])),
+      }))
+
+      vi.mocked(db.select)
+        .mockReturnValueOnce({ from: roleFrom } as any)
+        .mockReturnValueOnce({ from: existingFrom } as any)
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/parent/children',
+        payload: {
+          name: 'New Child',
+          email: 'existing@test.com',
+          password: 'password123',
+          level: 'beginner',
+        },
+      })
+
+      expect(res.statusCode).toBe(409)
+      const body = JSON.parse(res.payload)
+      expect(body.error).toContain('Email вже використовується')
     })
   })
 })

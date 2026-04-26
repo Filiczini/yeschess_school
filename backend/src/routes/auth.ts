@@ -4,15 +4,27 @@ import { db } from '../db/index.js'
 import { user, session as sessionTable } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
+// Headers added by reverse proxies — must not be forwarded to auth.handler
+// because they conflict with the internal http:// URL we build for the handler
+const PROXY_HEADERS = new Set([
+  'x-forwarded-proto',
+  'x-forwarded-for',
+  'x-forwarded-host',
+  'x-real-ip',
+  'content-length',  // will be recomputed from the body we pass
+])
+
 export default async function authRoutes(app: FastifyInstance) {
   app.all('/api/auth/*', {
-    config: { rateLimit: { max: process.env.NODE_ENV === 'production' ? 200 : 1000, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 500, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     const url = `http://${req.headers.host}${req.url}`
 
     const headers = new Headers()
     for (const [key, value] of Object.entries(req.headers)) {
-      if (value) headers.set(key, Array.isArray(value) ? value[0] : value)
+      if (value && !PROXY_HEADERS.has(key.toLowerCase())) {
+        headers.set(key, Array.isArray(value) ? value[0] : value)
+      }
     }
 
     const body =
@@ -42,7 +54,7 @@ export default async function authRoutes(app: FastifyInstance) {
           }
         }
       } catch {
-        // If parsing fails, forward the original response
+        // parsing failed — forward original response
       }
       reply.status(response.status)
       response.headers.forEach((value, key) => reply.header(key, value))

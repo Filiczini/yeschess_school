@@ -8,7 +8,8 @@ export default async function authRoutes(app: FastifyInstance) {
   app.all('/api/auth/*', {
     config: { rateLimit: { max: process.env.NODE_ENV === 'production' ? 200 : 1000, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
-    const url = `http://${req.headers.host}${req.url}`
+    const proto = (req.headers['x-forwarded-proto'] as string | undefined) ?? 'http'
+    const url = `${proto}://${req.headers.host}${req.url}`
 
     const headers = new Headers()
     for (const [key, value] of Object.entries(req.headers)) {

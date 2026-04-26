@@ -26,8 +26,10 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://yeschess:${DB_PASSWORD}@db:5432/yeschess
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=https://api.yeschess.school
+      - BETTER_AUTH_URL=https://yeschess.school
       - FRONTEND_URL=https://yeschess.school
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM:-YesChess <noreply@yeschess.school>}
     depends_on:
       db:
         condition: service_healthy
@@ -37,7 +39,7 @@ services:
       - "traefik.http.routers.yeschess-backend.rule=Host(`api.yeschess.school`)"
       - "traefik.http.routers.yeschess-backend.entrypoints=websecure"
       - "traefik.http.routers.yeschess-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.yeschess-backend.loadbalancer.server.port=3001"
+      - "traefik.http.services.yeschess-backend.loadbalancer.server.port=3000"
     networks:
       - dokploy-network
       - default

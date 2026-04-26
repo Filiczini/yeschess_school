@@ -5,7 +5,7 @@ import { user, session as sessionTable } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
 // Headers added by reverse proxies — must not be forwarded to auth.handler
-// because they conflict with the internal http:// URL we build for the handler
+// (x-forwarded-proto is read separately to build the URL; passing it again causes scheme conflicts)
 const PROXY_HEADERS = new Set([
   'x-forwarded-proto',
   'x-forwarded-for',
@@ -18,7 +18,8 @@ export default async function authRoutes(app: FastifyInstance) {
   app.all('/api/auth/*', {
     config: { rateLimit: { max: 500, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
-    const url = `http://${req.headers.host}${req.url}`
+    const proto = (req.headers['x-forwarded-proto'] as string | undefined) ?? 'http'
+    const url = `${proto}://${req.headers.host}${req.url}`
 
     const headers = new Headers()
     for (const [key, value] of Object.entries(req.headers)) {

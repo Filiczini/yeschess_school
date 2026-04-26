@@ -167,6 +167,37 @@ describe('AdminUsers', () => {
     expect(screen.getAllByText('alice@test.com').length).toBeGreaterThanOrEqual(1)
   })
 
+  it('confirms soft delete and removes user from list', async () => {
+    mockFetchSequence([
+      { ok: true, json: async () => ({ role: 'super_admin' }) },
+      { ok: true, json: async () => ({ data: mockUsers, meta: { total: 2, page: 1, limit: 50, pages: 1 } }) },
+      // After delete, refetch
+      { ok: true, json: async () => ({ data: [mockUsers[1]], meta: { total: 1, page: 1, limit: 50, pages: 1 } }) },
+    ])
+
+    render(
+      <MemoryRouter>
+        <AdminUsers />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+
+    const deleteButtons = screen.getAllByTitle('Видалити користувача')
+    await act(async () => {
+      fireEvent.click(deleteButtons[0])
+    })
+
+    await waitFor(() => expect(screen.getByText('Видалити користувача?')).toBeInTheDocument())
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Видалити'))
+    })
+
+    await waitFor(() => expect(screen.queryByText('Alice')).not.toBeInTheDocument())
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+  })
+
   it('restores deleted user', async () => {
     mockFetchSequence([
       { ok: true, json: async () => ({ role: 'super_admin' }) },
@@ -197,6 +228,38 @@ describe('AdminUsers', () => {
     })
 
     await waitFor(() => expect(screen.queryByText('Charlie')).not.toBeInTheDocument())
+  })
+
+  it('selects a single user via checkbox', async () => {
+    mockFetchSequence([
+      { ok: true, json: async () => ({ role: 'super_admin' }) },
+      { ok: true, json: async () => ({ data: mockDeletedUsers, meta: { total: 1, page: 1, limit: 50, pages: 1 } }) },
+      // After clicking "Видалені"
+      { ok: true, json: async () => ({ data: mockDeletedUsers, meta: { total: 1, page: 1, limit: 50, pages: 1 } }) },
+    ])
+
+    render(
+      <MemoryRouter>
+        <AdminUsers />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Видалені')).toBeInTheDocument())
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Видалені'))
+    })
+
+    await waitFor(() => expect(screen.getByText('Charlie')).toBeInTheDocument())
+
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]')
+    expect(checkboxes.length).toBeGreaterThanOrEqual(1)
+    await act(async () => {
+      fireEvent.click(checkboxes[0])
+    })
+
+    // Permanent delete button should appear when at least one selected
+    expect(screen.getByText((c: string) => c.includes('Видалити остаточно'))).toBeInTheDocument()
   })
 
   it('shows loading spinner while fetching', () => {

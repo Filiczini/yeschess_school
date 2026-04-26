@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import Fastify from 'fastify'
+import Fastify, { type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
@@ -46,7 +46,11 @@ await app.register(rateLimit, {
   global: true,
   max: 100,
   timeWindow: '1 minute',
-  keyGenerator: (req: { ip: string }) => req.ip ?? 'unknown',
+  keyGenerator: (req: FastifyRequest) => {
+    const forwarded = req.headers['x-forwarded-for']
+    const realIp = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip
+    return realIp ?? 'unknown'
+  },
   errorResponseBuilder: () => {
     const err = new Error('Too many requests') as any
     err.statusCode = 429

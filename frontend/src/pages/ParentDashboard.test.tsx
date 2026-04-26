@@ -185,4 +185,37 @@ describe('ParentDashboard', () => {
     await waitFor(() => expect(screen.getByText('Child Two')).toBeInTheDocument())
     expect(screen.getByText('Тренер ще не призначений')).toBeInTheDocument()
   })
+
+  it('shows quick actions when child has a coach', async () => {
+    mockFetchSequence([
+      { ok: true, json: async () => mockProfile },
+      { ok: true, json: async () => [mockChildren[0]] },
+    ])
+
+    render(
+      <MemoryRouter>
+        <ParentDashboard />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Записати')).toBeInTheDocument())
+    expect(screen.getByText('Заняття')).toBeInTheDocument()
+    expect(screen.getByText('2 заплановано')).toBeInTheDocument()
+  })
+
+  it('handles fetch error gracefully', async () => {
+    mockFetchSequence([
+      { ok: true, json: async () => mockProfile },
+      { ok: false, status: 500, json: async () => ({ error: 'fail' }) },
+    ])
+
+    render(
+      <MemoryRouter>
+        <ParentDashboard />
+      </MemoryRouter>,
+    )
+
+    // Should not crash; loading ends via catch
+    await waitFor(() => expect(screen.getByText('Parent Name')).toBeInTheDocument())
+  })
 })

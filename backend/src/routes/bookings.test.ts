@@ -33,6 +33,9 @@ vi.mock('../db/index.js', () => ({
         })),
       })),
     })),
+    delete: vi.fn(() => ({
+      where: vi.fn(() => Promise.resolve()),
+    })),
   },
 }))
 
@@ -62,6 +65,13 @@ vi.mock('../middleware/auth.js', () => ({
 
 import { db } from '../db/index.js'
 import { getCoachProfile } from '../lib/profile.js'
+import { sendBookingConfirmed, sendBookingCancelled } from '../email.js'
+
+function createThenable(value: any) {
+  const result: any = vi.fn()
+  result.then = (onFulfilled: any) => Promise.resolve(value).then(onFulfilled)
+  return result
+}
 
 describe('Bookings Routes', () => {
   beforeEach(() => {
@@ -170,8 +180,45 @@ describe('Bookings Routes', () => {
   })
 
   describe('GET /api/coach/bookings', () => {
-    it.skip('returns paginated bookings for coach', async () => {
-      // Complex Drizzle query chain mocking deferred to integration tests with real DB
+    it('returns paginated bookings for coach', async () => {
+      const app = await buildTestApp()
+      vi.mocked(getCoachProfile).mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440001' } as any)
+
+      const mockBookings = [
+        { id: 'b1', status: 'pending', scheduledAt: new Date().toISOString(), durationMin: 60, notes: null, cancelReason: null, studentId: 's1', studentName: 'Alice', studentEmail: 'alice@test.com' },
+      ]
+
+      const countFrom = vi.fn(() => {
+        const r = createThenable([{ total: 5 }])
+        r.where = vi.fn(() => createThenable([{ total: 5 }]))
+        return r
+      })
+
+      const dataFrom = vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                offset: vi.fn(() => Promise.resolve(mockBookings)),
+              })),
+            })),
+          })),
+        })),
+      }))
+
+      vi.mocked(db.select)
+        .mockReturnValueOnce({ from: countFrom } as any)
+        .mockReturnValueOnce({ from: dataFrom } as any)
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/coach/bookings?page=1&limit=20',
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body.data).toHaveLength(1)
+      expect(body.meta.total).toBe(5)
     })
 
     it('returns 403 when coach profile not found', async () => {
@@ -190,8 +237,44 @@ describe('Bookings Routes', () => {
   })
 
   describe('PATCH /api/bookings/:id/status', () => {
-    it.skip('confirms a booking and sends email', async () => {
-      // Complex Drizzle query + email mocking deferred to integration tests with real DB
+    it('confirms a booking and sends email', async () => {
+      const app = await buildTestApp()
+      vi.mocked(getCoachProfile).mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440001' } as any)
+
+      vi.mocked(db.select)
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => Promise.resolve([{ id: 'b1' }])),
+          })),
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => Promise.resolve([{ scheduledAt: new Date().toISOString(), durationMin: 60, studentId: 's1' }])),
+          })),
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            where: vi.fn(() => Promise.resolve([{ name: 'Student', email: 'student@test.com' }])),
+          })),
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn(() => ({
+            innerJoin: vi.fn(() => ({
+              where: vi.fn(() => Promise.resolve([{ name: 'Coach' }]))
+            }))
+          }))
+        } as any)
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/api/bookings/550e8400-e29b-41d4-a716-446655440001/status',
+        payload: { status: 'confirmed' },
+      })
+
+      expect(res.statusCode).toBe(200)
+      const body = JSON.parse(res.payload)
+      expect(body.status).toBe('confirmed')
+      expect(sendBookingConfirmed).toHaveBeenCalled()
     })
 
     it('returns 404 for non-existent booking', async () => {

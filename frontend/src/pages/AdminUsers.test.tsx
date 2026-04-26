@@ -213,4 +213,76 @@ describe('AdminUsers', () => {
 
     expect(document.querySelector('.animate-spin')).toBeInTheDocument()
   })
+
+  it('selects all users and permanently deletes them', async () => {
+    mockFetchSequence([
+      { ok: true, json: async () => ({ role: 'super_admin' }) },
+      { ok: true, json: async () => ({ data: mockDeletedUsers, meta: { total: 1, page: 1, limit: 50, pages: 1 } }) },
+      // After toggle
+      { ok: true, json: async () => ({ data: mockDeletedUsers, meta: { total: 1, page: 1, limit: 50, pages: 1 } }) },
+      { ok: true, json: async () => ({ ok: true, deleted: 1 }) },
+    ])
+
+    render(
+      <MemoryRouter>
+        <AdminUsers />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Видалені')).toBeInTheDocument())
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Видалені'))
+    })
+
+    await waitFor(() => expect(screen.getByText('Charlie')).toBeInTheDocument())
+
+    const checkbox = document.querySelector('input[type="checkbox"]')
+    if (checkbox) {
+      await act(async () => {
+        fireEvent.click(checkbox)
+      })
+    }
+
+    const permanentBtn = screen.getByText((c: string) => c.includes('Видалити остаточно'))
+    await act(async () => {
+      fireEvent.click(permanentBtn)
+    })
+
+    await waitFor(() => expect(screen.getByText('Видалити назавжди?')).toBeInTheDocument())
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Видалити назавжди'))
+    })
+
+    await waitFor(() => expect(screen.queryByText('Charlie')).not.toBeInTheDocument())
+  })
+
+  it('navigates to previous page', async () => {
+    globalThis.fetch = vi.fn(async (_url: string) => {
+      if (_url.includes('/api/users/me')) {
+        return { ok: true, json: async () => ({ role: 'super_admin' }) } as Response
+      }
+      if (_url.includes('page=2')) {
+        return { ok: true, json: async () => ({ data: mockUsers, meta: { total: 60, page: 2, limit: 50, pages: 2 } }) } as Response
+      }
+      return { ok: true, json: async () => ({ data: mockUsers, meta: { total: 60, page: 1, limit: 50, pages: 2 } }) } as Response
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminUsers />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText((c) => c.includes('Сторінка 1 з 2'))).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('Далі →'))
+
+    await waitFor(() => expect(screen.getByText((c) => c.includes('Сторінка 2 з 2'))).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('← Назад'))
+
+    await waitFor(() => expect(screen.getByText((c) => c.includes('Сторінка 1 з 2'))).toBeInTheDocument())
+  })
 })

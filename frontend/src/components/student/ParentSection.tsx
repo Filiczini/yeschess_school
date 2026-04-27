@@ -1,10 +1,12 @@
+import GlassCard from '../GlassCard'
+
 interface ParentSectionProps {
   parent?: { name: string; email: string; phone?: string | null; contactMethod?: string | null } | null
 }
 
 export default function ParentSection({ parent }: ParentSectionProps) {
   return (
-    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+    <GlassCard className="p-4 mb-4 text-white">
       <h2 className="text-sm font-semibold text-blue-200 mb-3">Батько/Мати</h2>
       {parent ? (
         <div className="flex items-center gap-3">
@@ -26,6 +28,6 @@ export default function ParentSection({ parent }: ParentSectionProps) {
       ) : (
         <div className="text-sm text-blue-300">Батька не прив'язано</div>
       )}
-    </div>
+    </GlassCard>
   )
 }

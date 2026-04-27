@@ -1,27 +1,28 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { signIn } from '../lib/auth-client'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
+import ErrorMessage from '../components/ErrorMessage'
+import GlassCard from '../components/GlassCard'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+  const { run: submitForm, loading, error, reset } = useAsyncSubmit(async () => {
+    const { error: authError } = await signIn.email({ email, password })
 
-    const { error } = await signIn.email({ email, password })
-
-    if (error) {
-      setError(error.message ?? 'Помилка входу')
-    } else {
-      window.location.href = '/dashboard'
+    if (authError) {
+      throw new Error(authError.message ?? 'Помилка входу')
     }
 
-    setLoading(false)
+    window.location.href = '/dashboard'
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    reset()
+    submitForm()
   }
 
   return (
@@ -34,7 +35,7 @@ export default function Login() {
           <span className="text-white font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+        <GlassCard className="p-8">
           <h1 className="text-2xl font-bold text-white mb-1 font-heading">Вхід</h1>
           <p className="text-blue-200 text-sm mb-6">Введіть ваші дані</p>
 
@@ -68,9 +69,7 @@ export default function Login() {
               />
             </div>
 
-            {error && (
-              <p className="text-red-300 text-sm">{error}</p>
-            )}
+            <ErrorMessage error={error} variant="auth" />
 
             <button
               type="submit"
@@ -87,7 +86,7 @@ export default function Login() {
               Реєстрація
             </Link>
           </p>
-        </div>
+        </GlassCard>
 
         <p className="mt-6 text-center">
           <Link to="/" className="text-blue-200/60 text-sm hover:text-blue-200 transition-colors">

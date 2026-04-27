@@ -28,7 +28,7 @@ describe('Dashboard', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith('/api/users/me', { credentials: 'include' }))
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith('/api/users/me', expect.objectContaining({ credentials: 'include' })))
   })
 
   it('redirects to /student for student role', async () => {

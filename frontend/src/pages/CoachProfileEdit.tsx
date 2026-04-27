@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
+import ErrorMessage from '../components/ErrorMessage'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 const CHESS_TITLES = ['CM', 'NM', 'FM', 'IM', 'GM', 'WFM', 'WIM', 'WGM']
 
@@ -14,9 +17,6 @@ const SPECIALIZATIONS = [
 
 export default function CoachProfileEdit() {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   // form state
   const [bio, setBio] = useState('')
@@ -26,32 +26,26 @@ export default function CoachProfileEdit() {
   const [languages, setLanguages] = useState<string[]>([])
   const [specializations, setSpecializations] = useState<string[]>([])
 
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
     fetch('/api/coach/profile', { credentials: 'include' })
       .then(r => r.json())
-      .then(data => {
-        if (data) {
-          setBio(data.bio ?? '')
-          setTitle(data.title ?? '')
-          setFideRating(data.fideRating?.toString() ?? '')
-          setHourlyRate(data.hourlyRate ?? '')
-          setLanguages(data.languages ?? [])
-          setSpecializations(data.specializations ?? [])
-        }
+      .then((data: { bio: string | null; title: string | null; fideRating: number | null; hourlyRate: string; languages: string[]; specializations: string[] }) => {
+        setBio(data.bio ?? '')
+        setTitle(data.title ?? '')
+        setFideRating(data.fideRating?.toString() ?? '')
+        setHourlyRate(data.hourlyRate ?? '')
+        setLanguages(data.languages ?? [])
+        setSpecializations(data.specializations ?? [])
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [])
 
-  function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
-    setList(list.includes(item) ? list.filter(x => x !== item) : [...list, item])
-  }
+  const { run: saveProfile, loading: saving, error, reset } = useAsyncSubmit(async () => {
+    if (!hourlyRate) throw new Error('Вкажіть ставку за годину')
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    if (!hourlyRate) { setError('Вкажіть ставку за годину'); return }
-
-    setSaving(true)
     const res = await fetch('/api/coach/profile', {
       method: 'PUT',
       credentials: 'include',
@@ -65,16 +59,23 @@ export default function CoachProfileEdit() {
         specializations,
       }),
     })
-    setSaving(false)
 
     if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? 'Помилка збереження')
-      return
+      throw new Error(data.error ?? 'Помилка збереження')
     }
 
-    await res.json()
     navigate('/coach/profile')
+  })
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    reset()
+    saveProfile()
+  }
+
+  function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
+    setList(list.includes(item) ? list.filter(x => x !== item) : [...list, item])
   }
 
   if (loading) {
@@ -97,7 +98,7 @@ export default function CoachProfileEdit() {
         <form onSubmit={handleSave} className="space-y-4">
 
           {/* Bio */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+          <GlassCard className="p-6">
             <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2">
               <iconify-icon icon="solar:document-text-linear" width="18" height="18"></iconify-icon>
               Про себе
@@ -109,10 +110,10 @@ export default function CoachProfileEdit() {
               placeholder="Розкажіть про свій досвід, підхід до навчання..."
               className="w-full bg-white/10 border border-white/20 text-white placeholder-blue-300/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/50 resize-none"
             />
-          </div>
+          </GlassCard>
 
           {/* Chess info */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+          <GlassCard className="p-6">
             <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2">
               <iconify-icon icon="solar:chess-knight-linear" width="18" height="18"></iconify-icon>
               Шахові дані
@@ -144,10 +145,10 @@ export default function CoachProfileEdit() {
                 />
               </div>
             </div>
-          </div>
+          </GlassCard>
 
           {/* Rate */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+          <GlassCard className="p-6">
             <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2">
               <iconify-icon icon="solar:wallet-linear" width="18" height="18"></iconify-icon>
               Ставка
@@ -164,10 +165,10 @@ export default function CoachProfileEdit() {
                 className="w-full bg-white/10 border border-white/20 text-white placeholder-blue-300/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/50"
               />
             </div>
-          </div>
+          </GlassCard>
 
           {/* Languages */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+          <GlassCard className="p-6">
             <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2">
               <iconify-icon icon="solar:global-linear" width="18" height="18"></iconify-icon>
               Мови навчання
@@ -188,10 +189,10 @@ export default function CoachProfileEdit() {
                 </button>
               ))}
             </div>
-          </div>
+          </GlassCard>
 
           {/* Specializations */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+          <GlassCard className="p-6">
             <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2">
               <iconify-icon icon="solar:target-linear" width="18" height="18"></iconify-icon>
               Спеціалізація
@@ -212,11 +213,9 @@ export default function CoachProfileEdit() {
                 </button>
               ))}
             </div>
-          </div>
+          </GlassCard>
 
-          {error && (
-            <p className="text-red-300 text-sm px-1">{error}</p>
-          )}
+          <ErrorMessage error={error} variant="dark" />
 
           <button
             type="submit"

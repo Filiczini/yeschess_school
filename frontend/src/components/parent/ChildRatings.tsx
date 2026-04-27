@@ -1,11 +1,11 @@
 import GlassCard from '../GlassCard'
 
-interface RatingsCardProps {
-  fideRating?: number | null
-  clubRating?: number | null
+interface ChildRatingsProps {
+  fideRating: number | null
+  clubRating: number | null
 }
 
-export default function RatingsCard({ fideRating, clubRating }: RatingsCardProps) {
+export default function ChildRatings({ fideRating, clubRating }: ChildRatingsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 mb-4">
       <GlassCard className="rounded-xl p-4 text-center text-white">

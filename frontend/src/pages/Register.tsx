@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { signUp } from '../lib/auth-client'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
+import ErrorMessage from '../components/ErrorMessage'
+import GlassCard from '../components/GlassCard'
 
 type Role = 'student' | 'parent' | 'coach'
 type ContactMethod = 'telegram' | 'whatsapp' | 'viber'
@@ -25,21 +28,12 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [contactMethod, setContactMethod] = useState<ContactMethod | null>(null)
   const [instagram, setInstagram] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!role) return
-    setError('')
-    setLoading(true)
-
+  const { run: submitForm, loading, error, reset } = useAsyncSubmit(async () => {
     const { error: signUpError } = await signUp.email({ name, email, password })
 
     if (signUpError) {
-      setError(signUpError.message ?? 'Помилка реєстрації')
-      setLoading(false)
-      return
+      throw new Error(signUpError.message ?? 'Помилка реєстрації')
     }
 
     const res = await fetch('/api/users/me/role', {
@@ -55,13 +49,18 @@ export default function Register() {
     })
 
     if (!res.ok) {
-      setError('Не вдалось встановити роль')
-      setLoading(false)
-      return
+      throw new Error('Не вдалось встановити роль')
     }
 
     const data = await res.json() as { status: string }
     window.location.href = data.status === 'pending' ? '/pending' : '/dashboard'
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!role) return
+    reset()
+    submitForm()
   }
 
   return (
@@ -74,7 +73,7 @@ export default function Register() {
           <span className="text-white font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+        <GlassCard className="p-8">
           <h1 className="text-2xl font-bold text-white mb-1 font-heading">Реєстрація</h1>
           <p className="text-blue-200 text-sm mb-6">Хто ви?</p>
 
@@ -201,7 +200,7 @@ export default function Register() {
               <p className="mt-1 text-blue-200/50 text-xs">Ми активно ведемо Instagram і можемо там комунікувати</p>
             </div>
 
-            {error && <p className="text-red-300 text-sm">{error}</p>}
+            <ErrorMessage error={error} variant="auth" />
 
             <button
               type="submit"
@@ -218,7 +217,7 @@ export default function Register() {
               Увійти
             </Link>
           </p>
-        </div>
+        </GlassCard>
 
         <p className="mt-6 text-center">
           <Link to="/" className="text-blue-200/60 text-sm hover:text-blue-200 transition-colors">

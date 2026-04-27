@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
+import { useApi } from '../hooks/useApi'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 interface CoachProfileData {
   id: string
@@ -13,17 +14,7 @@ interface CoachProfileData {
 }
 
 export default function CoachProfile() {
-  const [profile, setProfile] = useState<CoachProfileData | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/coach/profile', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        setProfile(data ?? null)
-        setLoading(false)
-      })
-  }, [])
+  const { data: profile, loading } = useApi<CoachProfileData>('/api/coach/profile')
 
   if (loading) {
     return (
@@ -52,7 +43,7 @@ export default function CoachProfile() {
         </div>
 
         {!profile ? (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-blue-200">
+          <GlassCard className="p-8 text-center text-blue-200">
             <iconify-icon icon="solar:user-id-linear" width="40" height="40" className="mb-3 block mx-auto opacity-50"></iconify-icon>
             <p className="text-sm">Профіль ще не заповнено.</p>
             <Link
@@ -61,23 +52,23 @@ export default function CoachProfile() {
             >
               Заповнити профіль
             </Link>
-          </div>
+          </GlassCard>
         ) : (
           <div className="space-y-4">
 
             {/* Bio */}
             {profile.bio && (
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+              <GlassCard className="p-6">
                 <h2 className="text-white font-semibold font-heading mb-3 flex items-center gap-2 text-sm uppercase tracking-wide opacity-70">
                   <iconify-icon icon="solar:document-text-linear" width="16" height="16"></iconify-icon>
                   Про себе
                 </h2>
                 <p className="text-blue-100 text-sm leading-relaxed">{profile.bio}</p>
-              </div>
+              </GlassCard>
             )}
 
             {/* Chess info */}
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+            <GlassCard className="p-6">
               <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2 text-sm uppercase tracking-wide opacity-70">
                 <iconify-icon icon="solar:chess-knight-linear" width="16" height="16"></iconify-icon>
                 Шахові дані
@@ -92,10 +83,10 @@ export default function CoachProfile() {
                   <p className="text-white font-semibold">{profile.fideRating ?? '—'}</p>
                 </div>
               </div>
-            </div>
+            </GlassCard>
 
             {/* Rate */}
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+            <GlassCard className="p-6">
               <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2 text-sm uppercase tracking-wide opacity-70">
                 <iconify-icon icon="solar:wallet-linear" width="16" height="16"></iconify-icon>
                 Ставка
@@ -103,11 +94,11 @@ export default function CoachProfile() {
               <p className="text-white text-2xl font-bold font-heading">
                 {profile.hourlyRate} <span className="text-blue-200 text-base font-normal">₴ / год</span>
               </p>
-            </div>
+            </GlassCard>
 
             {/* Languages */}
             {profile.languages.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+              <GlassCard className="p-6">
                 <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2 text-sm uppercase tracking-wide opacity-70">
                   <iconify-icon icon="solar:global-linear" width="16" height="16"></iconify-icon>
                   Мови навчання
@@ -122,12 +113,12 @@ export default function CoachProfile() {
                     </span>
                   ))}
                 </div>
-              </div>
+              </GlassCard>
             )}
 
             {/* Specializations */}
             {profile.specializations.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+              <GlassCard className="p-6">
                 <h2 className="text-white font-semibold font-heading mb-4 flex items-center gap-2 text-sm uppercase tracking-wide opacity-70">
                   <iconify-icon icon="solar:target-linear" width="16" height="16"></iconify-icon>
                   Спеціалізація
@@ -142,7 +133,7 @@ export default function CoachProfile() {
                     </span>
                   ))}
                 </div>
-              </div>
+              </GlassCard>
             )}
 
           </div>

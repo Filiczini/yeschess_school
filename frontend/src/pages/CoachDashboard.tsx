@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useSession } from '../lib/auth-client'
+import { useApi } from '../hooks/useApi'
 import SignOutButton from '../components/SignOutButton'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 interface UserProfile {
   role: string
@@ -43,21 +44,12 @@ const SECTIONS = [
 
 export default function CoachDashboard() {
   const { data: session } = useSession()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [pendingCount, setPendingCount] = useState(0)
+  const { data: profile } = useApi<UserProfile>('/api/users/me')
+  const { data: bookingsData } = useApi<{ status: string }[]>('/api/coach/bookings', { normalizeArray: true })
 
-  useEffect(() => {
-    fetch('/api/users/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(setProfile)
-    fetch('/api/coach/bookings', { credentials: 'include' })
-      .then(r => r.json())
-      .then((data: { status: string }[]) => {
-        if (Array.isArray(data)) {
-          setPendingCount(data.filter(b => b.status === 'pending').length)
-        }
-      })
-  }, [])
+  const pendingCount = Array.isArray(bookingsData)
+    ? bookingsData.filter(b => b.status === 'pending').length
+    : 0
 
   const isPending = profile?.status === 'pending'
 
@@ -71,7 +63,7 @@ export default function CoachDashboard() {
         </div>
 
         {/* Welcome card */}
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 mb-4 text-white">
+        <GlassCard className="p-6 mb-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
               <iconify-icon icon="solar:user-bold-duotone" width="28" height="28"></iconify-icon>
@@ -98,7 +90,7 @@ export default function CoachDashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </GlassCard>
 
         {/* Pending notice */}
         {isPending && (
@@ -131,14 +123,14 @@ export default function CoachDashboard() {
             { label: 'Сесій', value: '—', icon: 'solar:calendar-check-linear' },
             { label: 'Рейтинг', value: '—', icon: 'solar:star-linear' },
           ].map(s => (
-            <div
+            <GlassCard
               key={s.label}
-              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 text-center text-white"
+              className="rounded-xl p-4 text-center"
             >
               <iconify-icon icon={s.icon} width="20" height="20" className="mb-1 text-blue-200"></iconify-icon>
               <div className="text-xl font-bold font-heading">{s.value}</div>
               <div className="text-xs text-blue-200">{s.label}</div>
-            </div>
+            </GlassCard>
           ))}
         </div>
 

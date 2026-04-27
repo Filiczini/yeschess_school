@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useSession } from '../lib/auth-client'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
 import ErrorMessage from '../components/ErrorMessage'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 export default function ParentProfileEdit() {
   const { data: session } = useSession()
@@ -13,37 +15,39 @@ export default function ParentProfileEdit() {
     contactMethod: '',
     instagram: '',
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/users/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(d => setForm({
-        name: d.name ?? '',
-        phone: d.phone ?? '',
-        contactMethod: d.contactMethod ?? '',
-        instagram: d.instagram ?? '',
-      }))
+      .then((data: { name: string; phone: string | null; contactMethod: string | null; instagram: string | null }) => {
+        setForm({
+          name: data.name ?? '',
+          phone: data.phone ?? '',
+          contactMethod: data.contactMethod ?? '',
+          instagram: data.instagram ?? '',
+        })
+      })
+      .catch(() => {})
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+  const { run: submitForm, loading, error, reset } = useAsyncSubmit(async () => {
     const res = await fetch('/api/parent/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify(form),
     })
-    if (res.ok) {
-      navigate('/parent')
-    } else {
+    if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? 'Помилка')
+      throw new Error(data.error ?? 'Помилка')
     }
-    setLoading(false)
+    navigate('/parent')
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    reset()
+    submitForm()
   }
 
   return (
@@ -53,7 +57,7 @@ export default function ParentProfileEdit() {
         {/* Header */}
         <MobileHeader backTo="/parent" />
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white">
+        <GlassCard className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
               <iconify-icon icon="solar:user-bold-duotone" width="24" height="24"></iconify-icon>
@@ -125,7 +129,7 @@ export default function ParentProfileEdit() {
               {loading ? 'Збереження...' : 'Зберегти'}
             </button>
           </form>
-        </div>
+        </GlassCard>
 
       </div>
     </div>

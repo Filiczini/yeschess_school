@@ -1,11 +1,15 @@
 import type { FastifyInstance } from 'fastify'
 import { db } from '../db/index.js'
-import { user, coachProfile, enrollment, parentChild, linkCode, booking, account, session as sessionTable, studentProfile } from '../db/schema.js'
-import { eq, and, asc, isNull, isNotNull, inArray, sql } from 'drizzle-orm'
+import { user, coachProfile } from '../db/schema.js'
+import { eq, asc, inArray } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { sendCoachAssigned } from '../email.js'
 import { ADMIN_ROLES, ROLES } from '../lib/constants.js'
+import { listUsers, softDeleteUser, restoreUser, permanentDeleteUsers } from '../services/admin/users.js'
+import { getDashboardStats } from '../services/admin/stats.js'
+import { listEnrollments, createEnrollment, deleteEnrollment } from '../services/admin/enrollments.js'
+import { listPendingUsers, approveUser, rejectUser } from '../services/admin/approvals.js'
 
 export default async function adminRoutes(app: FastifyInstance) {
   app.get('/api/admin/pending', {
@@ -33,16 +37,8 @@ export default async function adminRoutes(app: FastifyInstance) {
         403: { $ref: 'Error#' },
       },
     },
-  }, async (req, reply) => {
-    const pending = await db.select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt,
-    }).from(user).where(eq(user.status, 'pending'))
-
+  }, async (_req, reply) => {
+    const pending = await listPendingUsers(db)
     return reply.send(pending)
   })
 
@@ -65,7 +61,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string }
-    await db.update(user).set({ status: 'active' }).where(eq(user.id, id))
+    await approveUser(db, id)
     return reply.send({ ok: true })
   })
 
@@ -88,7 +84,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string }
-    await db.update(user).set({ role: ROLES.STUDENT, status: 'active' }).where(eq(user.id, id))
+    await rejectUser(db, id)
     return reply.send({ ok: true })
   })
 
@@ -148,26 +144,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
     const page = Math.max(1, rawPage ?? 1)
     const limit = Math.min(100, Math.max(1, rawLimit ?? 20))
-    const offset = (page - 1) * limit
 
-    const baseFilter = deleted ? isNotNull(user.deletedAt) : isNull(user.deletedAt)
-    const filter = role ? and(baseFilter, eq(user.role, role as typeof user.role._.data)) : baseFilter
-
-    const [[{ total }], data] = await Promise.all([
-      db.select({ total: sql<number>`count(*)::int` }).from(user).where(filter),
-      db.select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        plan: user.plan,
-        createdAt: user.createdAt,
-        deletedAt: user.deletedAt,
-      }).from(user).where(filter).orderBy(asc(user.createdAt)).limit(limit).offset(offset),
-    ])
-
-    return reply.send({ data, meta: { total, page, limit, pages: Math.ceil(total / limit) } })
+    const result = await listUsers(db, { role, deleted, page, limit })
+    return reply.send(result)
   })
 
   app.get('/api/admin/stats', {
@@ -189,18 +168,9 @@ export default async function adminRoutes(app: FastifyInstance) {
         403: { $ref: 'Error#' },
       },
     },
-  }, async (req, reply) => {
-    const [[totalUsers], [pendingCount], [enrollmentsCount]] = await Promise.all([
-      db.select({ count: sql<number>`count(*)::int` }).from(user),
-      db.select({ count: sql<number>`count(*)::int` }).from(user).where(eq(user.status, 'pending')),
-      db.select({ count: sql<number>`count(*)::int` }).from(enrollment),
-    ])
-
-    return reply.send({
-      totalUsers: totalUsers.count,
-      pendingCount: pendingCount.count,
-      enrollmentsCount: enrollmentsCount.count,
-    })
+  }, async (_req, reply) => {
+    const stats = await getDashboardStats(db)
+    return reply.send(stats)
   })
 
   app.delete('/api/admin/users/:id', {
@@ -233,10 +203,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (target.role === ROLES.SUPER_ADMIN) return reply.status(400).send({ error: 'Не можна видалити super_admin' })
     if (target.deletedAt) return reply.status(400).send({ error: 'Вже видалено' })
 
-    await db.update(user)
-      .set({ deletedAt: new Date(), status: 'suspended', updatedAt: new Date() })
-      .where(eq(user.id, id))
-
+    await softDeleteUser(db, id)
     return reply.send({ ok: true })
   })
 
@@ -266,10 +233,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     if (!target) return reply.status(404).send({ error: 'Користувача не знайдено' })
     if (!target.deletedAt) return reply.status(400).send({ error: 'Користувач не видалений' })
 
-    await db.update(user)
-      .set({ deletedAt: null, status: 'active', updatedAt: new Date() })
-      .where(eq(user.id, id))
-
+    await restoreUser(db, id)
     return reply.send({ ok: true })
   })
 
@@ -305,20 +269,8 @@ export default async function adminRoutes(app: FastifyInstance) {
 
     const eligibleIds = eligible.map(t => t.id)
 
-    await db.transaction(async tx => {
-      await tx.delete(parentChild).where(inArray(parentChild.parentId, eligibleIds))
-      await tx.delete(parentChild).where(inArray(parentChild.childId, eligibleIds))
-      await tx.delete(linkCode).where(inArray(linkCode.studentId, eligibleIds))
-      await tx.delete(booking).where(inArray(booking.studentId, eligibleIds))
-      await tx.delete(enrollment).where(inArray(enrollment.studentId, eligibleIds))
-      await tx.delete(studentProfile).where(inArray(studentProfile.userId, eligibleIds))
-      await tx.delete(coachProfile).where(inArray(coachProfile.userId, eligibleIds))
-      await tx.delete(account).where(inArray(account.userId, eligibleIds))
-      await tx.delete(sessionTable).where(inArray(sessionTable.userId, eligibleIds))
-      await tx.delete(user).where(inArray(user.id, eligibleIds))
-    })
-
-    return reply.send({ ok: true, deleted: eligibleIds.length })
+    const result = await permanentDeleteUsers(db, eligibleIds)
+    return reply.send(result)
   })
 
   app.get('/api/admin/coaches', {
@@ -343,7 +295,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         403: { $ref: 'Error#' },
       },
     },
-  }, async (req, reply) => {
+  }, async (_req, reply) => {
     const coachUser = alias(user, 'coach_user')
 
     const rows = await db
@@ -407,37 +359,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     const { page: rawPage, limit: rawLimit } = req.query as { page?: number; limit?: number }
     const page = Math.max(1, rawPage ?? 1)
     const limit = Math.min(100, Math.max(1, rawLimit ?? 20))
-    const offset = (page - 1) * limit
 
-    const studentUser = alias(user, 'student_user')
-    const coachUser = alias(user, 'coach_user')
-
-    const baseQuery = db
-      .select({
-        id: enrollment.id,
-        notes: enrollment.notes,
-        createdAt: enrollment.createdAt,
-        studentId: enrollment.studentId,
-        studentName: studentUser.name,
-        studentEmail: studentUser.email,
-        coachId: enrollment.coachId,
-        coachName: coachUser.name,
-      })
-      .from(enrollment)
-      .innerJoin(studentUser, eq(enrollment.studentId, studentUser.id))
-      .innerJoin(coachProfile, eq(enrollment.coachId, coachProfile.id))
-      .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id))
-
-    const [[{ total }], data] = await Promise.all([
-      db.select({ total: sql<number>`count(*)::int` })
-        .from(enrollment)
-        .innerJoin(studentUser, eq(enrollment.studentId, studentUser.id))
-        .innerJoin(coachProfile, eq(enrollment.coachId, coachProfile.id))
-        .innerJoin(coachUser, eq(coachProfile.userId, coachUser.id)),
-      baseQuery.orderBy(asc(enrollment.createdAt)).limit(limit).offset(offset),
-    ])
-
-    return reply.send({ data, meta: { total, page, limit, pages: Math.ceil(total / limit) } })
+    const result = await listEnrollments(db, { page, limit })
+    return reply.send(result)
   })
 
   app.post('/api/admin/enrollments', {
@@ -470,32 +394,34 @@ export default async function adminRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'studentId and coachId are required' })
     }
 
-    const [existing] = await db
-      .select({ id: enrollment.id })
-      .from(enrollment)
-      .where(and(eq(enrollment.studentId, studentId), eq(enrollment.coachId, coachId)))
+    try {
+      const created = await createEnrollment(db, {
+        studentId,
+        coachId,
+        notes,
+        assignedBy: req.session.user.id,
+      })
 
-    if (existing) return reply.status(409).send({ error: 'Enrollment already exists' })
+      const coachUserAlias = alias(user, 'coach_user_email')
+      const [studentRow] = await db
+        .select({ name: user.name, email: user.email })
+        .from(user).where(eq(user.id, studentId))
+      const [coachRow] = await db
+        .select({ name: coachUserAlias.name, email: coachUserAlias.email })
+        .from(coachProfile)
+        .innerJoin(coachUserAlias, eq(coachProfile.userId, coachUserAlias.id))
+        .where(eq(coachProfile.id, coachId))
+      if (studentRow && coachRow) {
+        sendCoachAssigned(studentRow.email, studentRow.name, coachRow.name, coachRow.email).catch(() => {})
+      }
 
-    const [created] = await db
-      .insert(enrollment)
-      .values({ studentId, coachId, assignedBy: req.session.user.id, notes })
-      .returning({ id: enrollment.id })
-
-    const coachUserAlias = alias(user, 'coach_user_email')
-    const [studentRow] = await db
-      .select({ name: user.name, email: user.email })
-      .from(user).where(eq(user.id, studentId))
-    const [coachRow] = await db
-      .select({ name: coachUserAlias.name, email: coachUserAlias.email })
-      .from(coachProfile)
-      .innerJoin(coachUserAlias, eq(coachProfile.userId, coachUserAlias.id))
-      .where(eq(coachProfile.id, coachId))
-    if (studentRow && coachRow) {
-      sendCoachAssigned(studentRow.email, studentRow.name, coachRow.name, coachRow.email).catch(() => {})
+      return reply.status(201).send(created)
+    } catch (err: any) {
+      if (err.statusCode === 409) {
+        return reply.status(409).send({ error: err.message })
+      }
+      throw err
     }
-
-    return reply.status(201).send(created)
   })
 
   app.delete('/api/admin/enrollments/:id', {
@@ -517,7 +443,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     },
   }, async (req, reply) => {
     const { id } = req.params as { id: string }
-    await db.delete(enrollment).where(eq(enrollment.id, id))
+    await deleteEnrollment(db, id)
     return reply.send({ ok: true })
   })
 }

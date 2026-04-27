@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { useSession } from '../lib/auth-client'
+import { useApi } from '../hooks/useApi'
 import SignOutButton from '../components/SignOutButton'
+import GlassCard from '../components/GlassCard'
 
 interface UserProfile {
   role: string
@@ -20,13 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function Dashboard() {
   const { data: session } = useSession()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-
-  useEffect(() => {
-    fetch('/api/users/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(setProfile)
-  }, [])
+  const { data: profile } = useApi<UserProfile>('/api/users/me')
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
   const isPending = profile?.status === 'pending'
@@ -46,7 +41,7 @@ export default function Dashboard() {
           <span className="font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 mb-4">
+        <GlassCard className="p-8 mb-4">
           <h1 className="text-2xl font-bold mb-1 font-heading">Дашборд</h1>
           <p className="text-blue-200 text-sm mb-1">
             Вітаємо, <strong className="text-white">{session?.user.name}</strong>
@@ -99,7 +94,7 @@ export default function Dashboard() {
           )}
 
           <SignOutButton variant="dark" className="bg-white/5 hover:bg-white/10 border-white/10 text-blue-200" />
-        </div>
+        </GlassCard>
       </div>
     </div>
   )

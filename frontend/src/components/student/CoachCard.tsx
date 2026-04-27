@@ -1,4 +1,5 @@
 import { Badge } from '../Badge'
+import GlassCard from '../GlassCard'
 
 interface CoachCardProps {
   coach?: {
@@ -16,7 +17,7 @@ interface CoachCardProps {
 
 export default function CoachCard({ coach, loading }: CoachCardProps) {
   return (
-    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+    <GlassCard className="p-4 mb-4 text-white">
       <h2 className="text-sm font-semibold text-blue-200 mb-3">Мій тренер</h2>
       {loading ? (
         <div className="text-sm text-blue-200">Завантаження...</div>
@@ -50,6 +51,6 @@ export default function CoachCard({ coach, loading }: CoachCardProps) {
           Тренер ще не призначений
         </div>
       )}
-    </div>
+    </GlassCard>
   )
 }

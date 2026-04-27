@@ -10,6 +10,7 @@ import QuickActions from '../components/student/QuickActions'
 import LinkCodeSection from '../components/student/LinkCodeSection'
 import ParentSection from '../components/student/ParentSection'
 import CoachCard from '../components/student/CoachCard'
+import GlassCard from '../components/GlassCard'
 
 interface StudentProfile {
   level: string | null
@@ -108,7 +109,7 @@ export default function StudentDashboard() {
             <RatingsCard fideRating={profile?.fideRating} clubRating={profile?.clubRating} />
 
             {(profile?.chesscomUsername || profile?.lichessUsername) && (
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+              <GlassCard className="p-4 mb-4">
                 <h2 className="text-sm font-semibold text-blue-200 mb-3">Платформи</h2>
                 <div className="space-y-2">
                   {profile?.chesscomUsername && (
@@ -126,13 +127,13 @@ export default function StudentDashboard() {
                     </div>
                   )}
                 </div>
-              </div>
+              </GlassCard>
             )}
 
             {coach && <QuickActions onBook={() => navigate('/student/booking')} />}
 
             {(profile?.bio || profile?.birthdate) && (
-              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+              <GlassCard className="p-4 mb-4">
                 {profile?.birthdate && (
                   <div className="flex items-center gap-3 text-sm mb-2">
                     <iconify-icon icon="solar:calendar-linear" width="16" height="16" className="text-blue-300 shrink-0"></iconify-icon>
@@ -142,7 +143,7 @@ export default function StudentDashboard() {
                   </div>
                 )}
                 {profile?.bio && <p className="text-sm text-blue-100 leading-relaxed">{profile.bio}</p>}
-              </div>
+              </GlassCard>
             )}
 
             <LinkCodeSection code={linkCode} loading={linkCodeLoading} onGenerate={handleGenerateLinkCode} />

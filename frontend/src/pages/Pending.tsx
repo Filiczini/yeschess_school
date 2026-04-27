@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import SignOutButton from '../components/SignOutButton'
+import GlassCard from '../components/GlassCard'
 
 export default function Pending() {
   const navigate = useNavigate()
@@ -38,7 +39,7 @@ export default function Pending() {
           <span className="text-white font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+        <GlassCard className="p-8">
           <div className="w-16 h-16 bg-yellow-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <iconify-icon icon="solar:hourglass-line-duotone" width="32" height="32"></iconify-icon>
           </div>
@@ -65,7 +66,7 @@ export default function Pending() {
           </div>
 
           <SignOutButton variant="dark" />
-        </div>
+        </GlassCard>
       </div>
     </div>
   )

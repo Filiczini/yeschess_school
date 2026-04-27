@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-
+import { useApi } from '../hooks/useApi'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 interface Student {
   enrollmentId: string
@@ -29,17 +29,8 @@ const LEVEL_COLORS: Record<string, string> = {
 }
 
 export default function CoachStudents() {
-  const [students, setStudents] = useState<Student[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/coach/students', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        setStudents(Array.isArray(data) ? data : [])
-        setLoading(false)
-      })
-  }, [])
+  const { data: studentsData, loading } = useApi<Student[]>('/api/coach/students', { normalizeArray: true })
+  const students = studentsData ?? []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
@@ -57,16 +48,16 @@ export default function CoachStudents() {
         {loading ? (
           <div className="text-sm text-blue-200">Завантаження...</div>
         ) : students.length === 0 ? (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-white">
+          <GlassCard className="p-8 text-center">
             <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="40" height="40" className="text-blue-200 mb-3"></iconify-icon>
             <p className="text-blue-200 text-sm">Учнів ще немає. Адміністратор призначить їх до вас.</p>
-          </div>
+          </GlassCard>
         ) : (
           <div className="space-y-3">
             {students.map(s => (
-              <div
+              <GlassCard
                 key={s.enrollmentId}
-                className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white"
+                className="p-4"
               >
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
@@ -120,7 +111,7 @@ export default function CoachStudents() {
                     )}
                   </div>
                 </div>
-              </div>
+              </GlassCard>
             ))}
           </div>
         )}

@@ -1,30 +1,31 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { authClient } from '../lib/auth-client'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
+import ErrorMessage from '../components/ErrorMessage'
+import GlassCard from '../components/GlassCard'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const { error } = await authClient.requestPasswordReset({
+  const { run: submitForm, loading, error, reset } = useAsyncSubmit(async () => {
+    const { error: authError } = await authClient.requestPasswordReset({
       email,
       redirectTo: '/reset-password',
     })
 
-    if (error) {
-      setError(error.message ?? 'Помилка. Спробуйте ще раз.')
-    } else {
-      setSent(true)
+    if (authError) {
+      throw new Error(authError.message ?? 'Помилка. Спробуйте ще раз.')
     }
 
-    setLoading(false)
+    setSent(true)
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    reset()
+    submitForm()
   }
 
   return (
@@ -37,7 +38,7 @@ export default function ForgotPassword() {
           <span className="text-white font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+        <GlassCard className="p-8">
           {sent ? (
             <>
               <div className="flex justify-center mb-4">
@@ -72,9 +73,7 @@ export default function ForgotPassword() {
                   />
                 </div>
 
-                {error && (
-                  <p className="text-red-300 text-sm">{error}</p>
-                )}
+                <ErrorMessage error={error} variant="auth" />
 
                 <button
                   type="submit"
@@ -92,7 +91,7 @@ export default function ForgotPassword() {
               ← Повернутись до входу
             </Link>
           </p>
-        </div>
+        </GlassCard>
       </div>
     </div>
   )

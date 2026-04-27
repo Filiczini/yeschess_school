@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { StatusBadge } from '../components/Badge'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 import { useApi, apiPatch } from '../hooks/useApi'
 import { formatDateTime } from '../lib/date'
 
@@ -85,13 +86,13 @@ export default function CoachBookings() {
         {loading ? (
           <div className="text-sm text-blue-200">Завантаження...</div>
         ) : list.length === 0 ? (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-white">
+          <GlassCard className="p-8 text-center">
             <iconify-icon icon="solar:calendar-bold-duotone" width="40" height="40" className="text-blue-200 mb-3"></iconify-icon>
             <p className="text-blue-200 text-sm">Бронювань ще немає. Налаштуй розклад щоб учні могли записуватись.</p>
             <Link to="/coach/schedule" className="inline-block mt-4 text-sm text-white underline underline-offset-2">
               Налаштувати розклад
             </Link>
-          </div>
+          </GlassCard>
         ) : (
           <>
             {upcoming.length > 0 && (
@@ -142,7 +143,7 @@ function BookingCard({
   onCancel?: () => void
 }) {
   return (
-    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white">
+    <GlassCard className="p-4">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
           <div className="font-semibold truncate">{b.studentName}</div>
@@ -196,6 +197,6 @@ function BookingCard({
           )}
         </div>
       )}
-    </div>
+    </GlassCard>
   )
 }

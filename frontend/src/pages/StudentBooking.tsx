@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 import { formatDateTime, todayStr } from '../lib/date'
 
 interface CoachInfo {
@@ -120,14 +121,14 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
 
         {/* No coach */}
         {!coach ? (
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-white">
+          <GlassCard className="p-8 text-center">
             <iconify-icon icon="solar:user-plus-rounded-bold-duotone" width="40" height="40" className="text-blue-200 mb-3"></iconify-icon>
             <p className="text-blue-200 text-sm">Тренер ще не призначений. Зверніться до адміністратора.</p>
-          </div>
+          </GlassCard>
         ) : (
           <>
             {/* Coach info */}
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white flex items-center gap-4">
+            <GlassCard className="p-4 mb-4 flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
                 <iconify-icon icon="solar:user-bold-duotone" width="24" height="24"></iconify-icon>
               </div>
@@ -142,7 +143,7 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
                   )}
                 </div>
               </div>
-            </div>
+            </GlassCard>
 
             {/* Tabs */}
             <div className="flex gap-2 mb-4">
@@ -176,7 +177,7 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
                 </div>
 
                 {/* Slots grid */}
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white">
+                <GlassCard className="p-4">
                   <h2 className="text-sm font-semibold text-blue-200 mb-3">Доступні слоти</h2>
                   {slotsLoading ? (
                     <div className="text-sm text-blue-200">Завантаження...</div>
@@ -203,19 +204,19 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
                       ))}
                     </div>
                   )}
-                </div>
+                </GlassCard>
               </>
             )}
 
             {tab === 'history' && (
               <div className="space-y-3">
                 {bookings.length === 0 ? (
-                  <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center text-white">
+                  <GlassCard className="p-8 text-center">
                     <p className="text-blue-200 text-sm">Занять ще немає. Запишись до тренера!</p>
-                  </div>
+                  </GlassCard>
                 ) : (
                   bookings.map(b => (
-                    <div key={b.id} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 text-white">
+                    <GlassCard key={b.id} className="p-4">
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="text-sm font-medium">{formatDateTime(b.scheduledAt, { utc: true, longMonth: true })}</div>
                         <span className={`flex-shrink-0 text-xs px-2.5 py-1 border rounded-full ${STATUS_COLOR[b.status] ?? 'bg-white/10 border-white/20 text-blue-100'}`}>
@@ -237,7 +238,7 @@ const [coach, setCoach] = useState<CoachInfo | null>(null)
                           Скасувати
                         </button>
                       )}
-                    </div>
+                    </GlassCard>
                   ))
                 )}
               </div>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { ConfirmDialog } from '../components/ConfirmDialog'
 import { UserTableRow, type User } from '../components/admin/UserTableRow'
 import { UsersFilter } from '../components/admin/UsersFilter'
+import { UsersPagination } from '../components/admin/UsersPagination'
+import { DeleteConfirmModal } from '../components/admin/DeleteConfirmModal'
+import { BulkDeleteModal } from '../components/admin/BulkDeleteModal'
 
 const LIMIT = 50
 
@@ -11,7 +13,6 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([])
   const [meta, setMeta] = useState<Meta | null>(null)
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
   const [activeRole, setActiveRole] = useState('')
   const [showDeleted, setShowDeleted] = useState(false)
   const [myRole, setMyRole] = useState<string | null>(null)
@@ -43,7 +44,6 @@ export default function AdminUsers() {
 
   function handleFilter(role: string) {
     setActiveRole(role)
-    setPage(1)
     setSelectedIds(new Set())
     load(role, false, 1)
   }
@@ -52,13 +52,11 @@ export default function AdminUsers() {
     const next = !showDeleted
     setShowDeleted(next)
     setActiveRole('')
-    setPage(1)
     setSelectedIds(new Set())
     load('', next, 1)
   }
 
   function handlePageChange(newPage: number) {
-    setPage(newPage)
     setSelectedIds(new Set())
     load(activeRole, showDeleted, newPage)
   }
@@ -172,62 +170,34 @@ export default function AdminUsers() {
               </tbody>
             </table>
 
-            {meta && meta.pages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
-                <span className="text-sm text-gray-400">
-                  Сторінка {meta.page} з {meta.pages} · {meta.total} записів
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page <= 1}
-                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:border-brand-light/50 transition-colors cursor-pointer disabled:cursor-default"
-                  >
-                    ← Назад
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page >= meta.pages}
-                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:border-brand-light/50 transition-colors cursor-pointer disabled:cursor-default"
-                  >
-                    Далі →
-                  </button>
-                </div>
-              </div>
+            {meta && (
+              <UsersPagination
+                page={meta.page}
+                pages={meta.pages}
+                total={meta.total}
+                onPageChange={handlePageChange}
+              />
             )}
           </>
         )}
       </div>
 
-      <ConfirmDialog open={!!confirmUser} onClose={() => !deleting && setConfirmUser(null)} title="Видалити користувача?"
-        description={<p className="text-sm text-gray-500 mb-1">Ви збираєтесь видалити акаунт:</p>}
-        onConfirm={handleConfirmDelete} confirmLabel="Видалити" loading={deleting}
-      >
-        {confirmUser && (
-          <>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-5">
-              <p className="font-medium text-gray-900 text-sm">{confirmUser.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{confirmUser.email}</p>
-            </div>
-            <p className="text-xs text-gray-400 mb-5">Акаунт буде деактивовано. Ви зможете відновити його у вкладці «Видалені».</p>
-          </>
-        )}
-      </ConfirmDialog>
+      <DeleteConfirmModal
+        open={!!confirmUser}
+        user={confirmUser}
+        onClose={() => !deleting && setConfirmUser(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleting}
+      />
 
-      <ConfirmDialog open={confirmPermanent} onClose={() => !permanentDeleting && setConfirmPermanent(false)} title="Видалити назавжди?"
-        description={<p className="text-sm text-gray-500 mb-4">Буде остаточно видалено {selectedIds.size} {selectedIds.size === 1 ? 'акаунт' : 'акаунти'}. Це незворотна дія — відновити буде неможливо.</p>}
-        onConfirm={handlePermanentDelete} confirmLabel="Видалити назавжди" loading={permanentDeleting} danger
-        icon="solar:danger-bold-duotone" confirmIcon="solar:trash-bin-minimalistic-bold"
-      >
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 max-h-36 overflow-y-auto space-y-1.5">
-          {users.filter(u => selectedIds.has(u.id)).map(u => (
-            <div key={u.id}>
-              <p className="font-medium text-gray-800 text-sm">{u.name}</p>
-              <p className="text-xs text-red-400">{u.email}</p>
-            </div>
-          ))}
-        </div>
-      </ConfirmDialog>
+      <BulkDeleteModal
+        open={confirmPermanent}
+        selectedIds={selectedIds}
+        users={users}
+        onClose={() => !permanentDeleting && setConfirmPermanent(false)}
+        onConfirm={handlePermanentDelete}
+        loading={permanentDeleting}
+      />
     </div>
   )
 }

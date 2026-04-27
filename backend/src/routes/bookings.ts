@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { db } from '../db/index.js'
-import { user, coachProfile, coachSchedule, booking } from '../db/schema.js'
-import { eq, and, gte, lt, ne, asc, sql, inArray } from 'drizzle-orm'
+import { user, coachProfile, booking } from '../db/schema.js'
+import { eq, and, asc, sql, inArray } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { requireAuth } from '../middleware/auth.js'
 import { getCoachProfile } from '../lib/profile.js'
-import { sendBookingConfirmed, sendBookingCancelled } from '../email.js'
+import { getAvailableSlots } from '../services/slot-validation.js'
+import { notifyBookingStatusChange } from '../services/booking-notifications.js'
 
 export default async function bookingsRoutes(app: FastifyInstance) {
   app.get('/api/coaches/:coachId/slots', {
@@ -53,55 +54,8 @@ export default async function bookingsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'date query param required (YYYY-MM-DD)' })
     }
 
-    const parsed = new Date(date)
-    const jsDow = parsed.getDay()
-    const dayOfWeek = jsDow === 0 ? 6 : jsDow - 1
-
-    const [schedule] = await db
-      .select()
-      .from(coachSchedule)
-      .where(and(
-        eq(coachSchedule.coachId, coachId),
-        eq(coachSchedule.dayOfWeek, dayOfWeek),
-        eq(coachSchedule.isActive, true),
-      ))
-
-    if (!schedule) return reply.send([])
-
-    const [startH, startM] = schedule.startTime.split(':').map(Number)
-    const [endH, endM] = schedule.endTime.split(':').map(Number)
-    const startMinutes = startH * 60 + startM
-    const endMinutes = endH * 60 + endM
-
-    const allSlots: string[] = []
-    for (let m = startMinutes; m + schedule.slotDuration <= endMinutes; m += schedule.slotDuration) {
-      const h = String(Math.floor(m / 60)).padStart(2, '0')
-      const min = String(m % 60).padStart(2, '0')
-      allSlots.push(`${h}:${min}`)
-    }
-
-    const dayStart = new Date(`${date}T00:00:00.000Z`)
-    const dayEnd = new Date(`${date}T23:59:59.999Z`)
-
-    const booked = await db
-      .select({ scheduledAt: booking.scheduledAt })
-      .from(booking)
-      .where(and(
-        eq(booking.coachId, coachId),
-        gte(booking.scheduledAt, dayStart),
-        lt(booking.scheduledAt, dayEnd),
-        ne(booking.status, 'cancelled'),
-        ne(booking.status, 'refunded'),
-      ))
-
-    const bookedTimes = new Set(
-      booked.map(b => {
-        const d = new Date(b.scheduledAt)
-        return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
-      })
-    )
-
-    return reply.send(allSlots.map(time => ({ time, available: !bookedTimes.has(time) })))
+    const slots = await getAvailableSlots(db, { coachId, date })
+    return reply.send(slots)
   })
 
   app.post('/api/bookings', {
@@ -321,29 +275,14 @@ export default async function bookingsRoutes(app: FastifyInstance) {
       .returning({ id: booking.id, status: booking.status })
 
     if (bookingFull && (status === 'confirmed' || status === 'cancelled')) {
-      const coachUserAlias = alias(user, 'coach_user_email')
-      const [studentRow] = await db
-        .select({ name: user.name, email: user.email })
-        .from(user)
-        .where(eq(user.id, bookingFull.studentId))
-      const [coachRow] = await db
-        .select({ name: coachUserAlias.name })
-        .from(coachProfile)
-        .innerJoin(coachUserAlias, eq(coachProfile.userId, coachUserAlias.id))
-        .where(eq(coachProfile.id, profile.id))
-      if (studentRow && coachRow) {
-        if (status === 'confirmed') {
-          sendBookingConfirmed(
-            studentRow.email, studentRow.name, coachRow.name,
-            bookingFull.scheduledAt, bookingFull.durationMin,
-          ).catch(() => {})
-        } else {
-          sendBookingCancelled(
-            studentRow.email, studentRow.name, coachRow.name,
-            bookingFull.scheduledAt, cancelReason,
-          ).catch(() => {})
-        }
-      }
+      await notifyBookingStatusChange(db, {
+        status,
+        studentId: bookingFull.studentId,
+        coachProfileId: profile.id,
+        scheduledAt: bookingFull.scheduledAt,
+        durationMin: bookingFull.durationMin,
+        cancelReason,
+      }).catch(() => {})
     }
 
     return reply.send(updated)

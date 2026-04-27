@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
 import ErrorMessage from '../components/ErrorMessage'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 export default function ParentAddChild() {
   const navigate = useNavigate()
@@ -14,49 +16,47 @@ export default function ParentAddChild() {
     level: 'beginner',
     birthdate: '',
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const [codeInput, setCodeInput] = useState('')
-  const [codeLoading, setCodeLoading] = useState(false)
-  const [codeError, setCodeError] = useState<string | null>(null)
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+  const { run: runCreate, loading, error, reset } = useAsyncSubmit(async () => {
     const res = await fetch('/api/parent/children', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify(form),
     })
-    if (res.ok) {
-      navigate('/parent')
-    } else {
+    if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? 'Помилка при додаванні дитини')
+      throw new Error(data.error ?? 'Помилка при додаванні дитини')
     }
-    setLoading(false)
-  }
+    navigate('/parent')
+  })
 
-  async function handleLinkByCode(e: React.FormEvent) {
-    e.preventDefault()
-    setCodeLoading(true)
-    setCodeError(null)
+  const { run: runLink, loading: codeLoading, error: codeError, reset: resetCode } = useAsyncSubmit(async () => {
     const res = await fetch('/api/parent/link-child', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ code: codeInput }),
     })
-    if (res.ok) {
-      navigate('/parent')
-    } else {
+    if (!res.ok) {
       const data = await res.json()
-      setCodeError(data.error ?? 'Помилка')
+      throw new Error(data.error ?? 'Помилка')
     }
-    setCodeLoading(false)
+    navigate('/parent')
+  })
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    reset()
+    runCreate()
+  }
+
+  function handleLinkByCode(e: React.FormEvent) {
+    e.preventDefault()
+    resetCode()
+    runLink()
   }
 
   return (
@@ -66,13 +66,13 @@ export default function ParentAddChild() {
         {/* Header */}
         <MobileHeader backTo="/parent" />
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white">
+        <GlassCard className="p-6">
           <h1 className="text-xl font-bold font-heading mb-4">Додати дитину</h1>
 
           {/* Tabs */}
           <div className="flex gap-1 p-1 bg-white/10 rounded-xl mb-6">
             <button
-              onClick={() => { setTab('new'); setError(null) }}
+              onClick={() => { setTab('new'); reset() }}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 tab === 'new' ? 'bg-white text-brand' : 'text-blue-200 hover:text-white'
               }`}
@@ -80,7 +80,7 @@ export default function ParentAddChild() {
               Новий акаунт
             </button>
             <button
-              onClick={() => { setTab('code'); setCodeError(null) }}
+              onClick={() => { setTab('code'); resetCode() }}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 tab === 'code' ? 'bg-white text-brand' : 'text-blue-200 hover:text-white'
               }`}
@@ -185,7 +185,7 @@ export default function ParentAddChild() {
                   <label className="block text-sm text-blue-200 mb-1.5">Код від учня</label>
                   <input
                     value={codeInput}
-                    onChange={e => { setCodeInput(e.target.value.toUpperCase()); setCodeError(null) }}
+                    onChange={e => { setCodeInput(e.target.value.toUpperCase()); resetCode() }}
                     placeholder="8X4K92JF"
                     maxLength={8}
                     className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-blue-300/30 focus:outline-none focus:border-white/40 text-xl tracking-[0.3em] font-mono text-center uppercase"
@@ -202,7 +202,7 @@ export default function ParentAddChild() {
               </form>
             </>
           )}
-        </div>
+        </GlassCard>
 
       </div>
     </div>

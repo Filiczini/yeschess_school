@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { authClient } from '../lib/auth-client'
+import ErrorMessage from '../components/ErrorMessage'
+import GlassCard from '../components/GlassCard'
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -42,14 +44,14 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center px-4">
         <div className="w-full max-w-sm">
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 text-center">
+          <GlassCard className="p-8 text-center">
             <iconify-icon icon="solar:danger-triangle-outline" width="40" height="40"></iconify-icon>
             <h1 className="text-xl font-bold text-white mb-2 font-heading">Недійсне посилання</h1>
             <p className="text-blue-200 text-sm mb-6">Посилання для скидання паролю відсутнє або пошкоджене.</p>
             <Link to="/forgot-password" className="inline-block w-full py-3 bg-white text-brand rounded-xl font-semibold text-sm hover:bg-blue-50 transition-colors text-center">
               Запросити нове посилання
             </Link>
-          </div>
+          </GlassCard>
         </div>
       </div>
     )
@@ -65,7 +67,7 @@ export default function ResetPassword() {
           <span className="text-white font-bold tracking-tight text-xl uppercase font-heading">YesChess</span>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+        <GlassCard className="p-8">
           {done ? (
             <>
               <div className="flex justify-center mb-4">
@@ -113,9 +115,7 @@ export default function ResetPassword() {
                   />
                 </div>
 
-                {error && (
-                  <p className="text-red-300 text-sm">{error}</p>
-                )}
+                <ErrorMessage error={error} variant="auth" />
 
                 <button
                   type="submit"
@@ -127,7 +127,7 @@ export default function ResetPassword() {
               </form>
             </>
           )}
-        </div>
+        </GlassCard>
       </div>
     </div>
   )

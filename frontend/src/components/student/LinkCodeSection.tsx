@@ -1,3 +1,5 @@
+import GlassCard from '../GlassCard'
+
 interface LinkCodeSectionProps {
   code?: { code: string; expiresAt: string } | null
   loading: boolean
@@ -6,7 +8,7 @@ interface LinkCodeSectionProps {
 
 export default function LinkCodeSection({ code, loading, onGenerate }: LinkCodeSectionProps) {
   return (
-    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 mb-4 text-white">
+    <GlassCard className="p-4 mb-4 text-white">
       <h2 className="text-sm font-semibold text-blue-200 mb-3">Прив'язка до батька</h2>
       {code ? (
         <div>
@@ -37,6 +39,6 @@ export default function LinkCodeSection({ code, loading, onGenerate }: LinkCodeS
           {loading ? 'Генерація...' : 'Отримати код прив\'язки'}
         </button>
       )}
-    </div>
+    </GlassCard>
   )
 }

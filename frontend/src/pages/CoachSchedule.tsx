@@ -24,24 +24,26 @@ export default function CoachSchedule() {
   const [slots, setSlots] = useState<DaySlot[]>(
     Array.from({ length: 7 }, (_, i) => DEFAULT_SLOT(i))
   )
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/coach/schedule', { credentials: 'include' })
       .then(r => r.json())
-      .then((rows: DaySlot[]) => {
-        if (Array.isArray(rows) && rows.length > 0) {
+      .then((data: DaySlot[]) => {
+        if (Array.isArray(data) && data.length > 0) {
           setSlots(prev =>
             prev.map(s => {
-              const found = rows.find(r => r.dayOfWeek === s.dayOfWeek)
+              const found = data.find(r => r.dayOfWeek === s.dayOfWeek)
               return found ? { ...s, ...found } : s
             })
           )
         }
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [])
 
   function update(dayOfWeek: number, field: keyof DaySlot, value: unknown) {

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useAsyncSubmit } from '../hooks/useAsyncSubmit'
+import ErrorMessage from '../components/ErrorMessage'
 import MobileHeader from '../components/MobileHeader'
+import GlassCard from '../components/GlassCard'
 
 interface FormState {
   level: string
@@ -25,38 +28,32 @@ const EMPTY: FormState = {
 export default function StudentProfileEdit() {
   const navigate = useNavigate()
   const [form, setForm] = useState<FormState>(EMPTY)
+
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     fetch('/api/student/profile', { credentials: 'include' })
       .then(r => r.json())
-      .then(data => {
-        if (data) {
-          setForm({
-            level: data.level ?? '',
-            fideRating: data.fideRating?.toString() ?? '',
-            clubRating: data.clubRating?.toString() ?? '',
-            chesscomUsername: data.chesscomUsername ?? '',
-            lichessUsername: data.lichessUsername ?? '',
-            bio: data.bio ?? '',
-            birthdate: data.birthdate ? data.birthdate.slice(0, 10) : '',
-          })
-        }
+      .then((data: { level: string | null; fideRating: number | null; clubRating: number | null; chesscomUsername: string | null; lichessUsername: string | null; bio: string | null; birthdate: string | null }) => {
+        setForm({
+          level: data.level ?? '',
+          fideRating: data.fideRating?.toString() ?? '',
+          clubRating: data.clubRating?.toString() ?? '',
+          chesscomUsername: data.chesscomUsername ?? '',
+          lichessUsername: data.lichessUsername ?? '',
+          bio: data.bio ?? '',
+          birthdate: data.birthdate ? data.birthdate.slice(0, 10) : '',
+        })
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError('')
-
+  const { run: submitProfile, loading: saving, error, reset } = useAsyncSubmit(async () => {
     const body: Record<string, unknown> = {
       level: form.level || undefined,
       fideRating: form.fideRating ? parseInt(form.fideRating) : undefined,
@@ -74,13 +71,18 @@ export default function StudentProfileEdit() {
       body: JSON.stringify(body),
     })
 
-    if (res.ok) {
-      navigate('/student')
-    } else {
+    if (!res.ok) {
       const data = await res.json()
-      setError(data.error ?? 'Помилка збереження')
-      setSaving(false)
+      throw new Error(data.error ?? 'Помилка збереження')
     }
+
+    navigate('/student')
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    reset()
+    submitProfile()
   }
 
   if (loading) {
@@ -97,14 +99,10 @@ export default function StudentProfileEdit() {
         {/* Header */}
         <MobileHeader backTo="/student" />
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white">
+        <GlassCard className="p-6">
           <h1 className="text-xl font-bold font-heading mb-6">Мій профіль</h1>
 
-          {error && (
-            <div className="bg-red-400/10 border border-red-400/20 rounded-xl p-3 mb-4 text-sm text-red-300">
-              {error}
-            </div>
-          )}
+          <ErrorMessage error={error} variant="dark" />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Level */}
@@ -210,7 +208,7 @@ export default function StudentProfileEdit() {
               {saving ? 'Збереження...' : 'Зберегти'}
             </button>
           </form>
-        </div>
+        </GlassCard>
       </div>
     </div>
   )

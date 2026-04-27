@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useApi } from '../hooks/useApi'
 
 interface Stats {
   totalUsers: number
@@ -7,14 +7,7 @@ interface Stats {
 }
 
 export default function AdminOverview() {
-  const [stats, setStats] = useState<Stats | null>(null)
-
-  useEffect(() => {
-    fetch('/api/admin/stats', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => d && setStats(d))
-      .catch(() => {})
-  }, [])
+  const { data: stats } = useApi<Stats>('/api/admin/stats')
 
   return (
     <div className="p-10 max-w-6xl mx-auto">

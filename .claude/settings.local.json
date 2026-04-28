@@ -23,7 +23,10 @@
       "Bash(npx npm-check-updates *)",
       "Bash(npm outdated *)",
       "Bash(curl -s http://localhost:3000/api/health)",
-      "Bash(curl -s http://localhost:3000/health)"
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }
